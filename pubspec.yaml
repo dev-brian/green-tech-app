@@ -14,6 +14,15 @@ dependencies:
   # Gráficas para dashboard e histórico
   fl_chart: ^0.68.0
 
+  # Permite seleccionar imágenes para foto de perfil
+  image_picker: ^0.8.7+6
+
+  # Guardar ruta/ajustes simples en el dispositivo
+  shared_preferences: ^2.2.0
+
+  # Acceso a rutas de archivos (para persistir la imagen localmente)
+  path_provider: ^2.0.15
+
   # Firebase (descomenta cuando conectes tu proyecto real)
   # firebase_core: ^2.31.0
   # firebase_auth: ^4.19.6

@@ -22,7 +22,10 @@ class AlertTile extends StatelessWidget {
         borderRadius: BorderRadius.circular(14),
         border: Border(left: BorderSide(color: color, width: 5)),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 6, offset: const Offset(0, 2)),
+          BoxShadow(
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 6,
+              offset: const Offset(0, 2)),
         ],
       ),
       child: Row(
@@ -35,17 +38,23 @@ class AlertTile extends StatelessWidget {
               children: [
                 Text(
                   alert.mensaje,
-                  style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: AppColors.textPrimary),
+                  style: const TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                      color: AppColors.textPrimary),
                 ),
                 const SizedBox(height: 4),
-                Text(fecha, style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                Text(fecha,
+                    style: const TextStyle(
+                        fontSize: 12, color: AppColors.textSecondary)),
               ],
             ),
           ),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             decoration: BoxDecoration(
-              color: (alert.activa ? AppColors.critico : AppColors.normal).withOpacity(0.12),
+              color: (alert.activa ? AppColors.critico : AppColors.normal)
+                  .withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(20),
             ),
             child: Text(

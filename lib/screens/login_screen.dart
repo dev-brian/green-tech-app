@@ -36,9 +36,11 @@ class _LoginScreenState extends State<LoginScreen> {
 
     try {
       if (_isRegisterMode) {
-        await FirebaseService.instance.signUp(email: _emailCtrl.text.trim(), password: _passCtrl.text);
+        await FirebaseService.instance
+            .signUp(email: _emailCtrl.text.trim(), password: _passCtrl.text);
       } else {
-        await FirebaseService.instance.signIn(email: _emailCtrl.text.trim(), password: _passCtrl.text);
+        await FirebaseService.instance
+            .signIn(email: _emailCtrl.text.trim(), password: _passCtrl.text);
       }
       if (!mounted) return;
       Navigator.of(context).pushReplacement(
@@ -61,12 +63,16 @@ class _LoginScreenState extends State<LoginScreen> {
             key: _formKey,
             child: ListView(
               children: [
-                const SizedBox(height: 40),
+                if (_loading) const LinearProgressIndicator(minHeight: 3),
+                const SizedBox(height: 24),
                 Container(
                   width: 72,
                   height: 72,
-                  decoration: BoxDecoration(color: AppColors.primary.withOpacity(0.1), shape: BoxShape.circle),
-                  child: const Icon(Icons.eco, color: AppColors.primary, size: 38),
+                  decoration: BoxDecoration(
+                      color: AppColors.primary.withValues(alpha: 0.1),
+                      shape: BoxShape.circle),
+                  child:
+                      const Icon(Icons.eco, color: AppColors.primary, size: 38),
                 ),
                 const SizedBox(height: 20),
                 Text(
@@ -84,7 +90,9 @@ class _LoginScreenState extends State<LoginScreen> {
                 TextFormField(
                   controller: _emailCtrl,
                   keyboardType: TextInputType.emailAddress,
-                  decoration: const InputDecoration(labelText: 'Email', prefixIcon: Icon(Icons.email_outlined)),
+                  decoration: const InputDecoration(
+                      labelText: 'Email',
+                      prefixIcon: Icon(Icons.email_outlined)),
                   validator: (v) {
                     if (v == null || v.isEmpty) return 'Ingresa tu email';
                     if (!v.contains('@')) return 'Email inválido';
@@ -99,7 +107,8 @@ class _LoginScreenState extends State<LoginScreen> {
                     labelText: 'Contraseña',
                     prefixIcon: const Icon(Icons.lock_outline),
                     suffixIcon: IconButton(
-                      icon: Icon(_obscure ? Icons.visibility_off : Icons.visibility),
+                      icon: Icon(
+                          _obscure ? Icons.visibility_off : Icons.visibility),
                       onPressed: () => setState(() => _obscure = !_obscure),
                     ),
                   ),
@@ -111,20 +120,22 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
                 if (_errorMsg != null) ...[
                   const SizedBox(height: 12),
-                  Text(_errorMsg!, style: const TextStyle(color: AppColors.critico, fontSize: 13)),
+                  Text(_errorMsg!,
+                      style: const TextStyle(
+                          color: AppColors.critico, fontSize: 13)),
                 ],
                 const SizedBox(height: 28),
                 ElevatedButton(
                   onPressed: _loading ? null : _submit,
-                  child: _loading
-                      ? const SizedBox(
-                          width: 20, height: 20,
-                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                      : Text(_isRegisterMode ? 'Registrarse' : 'Iniciar sesión'),
+                  child:
+                      Text(_isRegisterMode ? 'Registrarse' : 'Iniciar sesión'),
                 ),
                 const SizedBox(height: 12),
                 TextButton(
-                  onPressed: _loading ? null : () => setState(() => _isRegisterMode = !_isRegisterMode),
+                  onPressed: _loading
+                      ? null
+                      : () =>
+                          setState(() => _isRegisterMode = !_isRegisterMode),
                   child: Text(
                     _isRegisterMode
                         ? '¿Ya tienes cuenta? Inicia sesión'

@@ -35,7 +35,8 @@ class _AlertsScreenState extends State<AlertsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final visibles = _soloActivas ? _alerts.where((a) => a.activa).toList() : _alerts;
+    final visibles =
+        _soloActivas ? _alerts.where((a) => a.activa).toList() : _alerts;
 
     return Scaffold(
       appBar: AppBar(
@@ -49,14 +50,16 @@ class _AlertsScreenState extends State<AlertsScreen> {
           : Column(
               children: [
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   child: Row(
                     children: [
                       FilterChip(
                         label: const Text('Solo activas'),
                         selected: _soloActivas,
                         onSelected: (v) => setState(() => _soloActivas = v),
-                        selectedColor: AppColors.critico.withOpacity(0.15),
+                        selectedColor:
+                            AppColors.critico.withValues(alpha: 0.15),
                         showCheckmark: false,
                       ),
                     ],
@@ -70,7 +73,8 @@ class _AlertsScreenState extends State<AlertsScreen> {
                           child: ListView.builder(
                             padding: const EdgeInsets.symmetric(horizontal: 16),
                             itemCount: visibles.length,
-                            itemBuilder: (context, i) => AlertTile(alert: visibles[i]),
+                            itemBuilder: (context, i) =>
+                                AlertTile(alert: visibles[i]),
                           ),
                         ),
                 ),

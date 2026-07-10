@@ -34,10 +34,10 @@ class SensorCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: color.withOpacity(0.35), width: 1.5),
+          border: Border.all(color: color.withValues(alpha: 0.35), width: 1.5),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.04),
+              color: Colors.black.withValues(alpha: 0.04),
               blurRadius: 8,
               offset: const Offset(0, 3),
             ),
@@ -52,7 +52,7 @@ class SensorCard extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: color.withOpacity(0.12),
+                    color: color.withValues(alpha: 0.12),
                     shape: BoxShape.circle,
                   ),
                   child: Icon(icon, color: color, size: 22),
@@ -63,7 +63,10 @@ class SensorCard extends StatelessWidget {
             const SizedBox(height: 12),
             Text(
               label,
-              style: const TextStyle(fontSize: 13, color: AppColors.textSecondary, fontWeight: FontWeight.w500),
+              style: const TextStyle(
+                  fontSize: 13,
+                  color: AppColors.textSecondary,
+                  fontWeight: FontWeight.w500),
             ),
             const SizedBox(height: 4),
             Row(
@@ -72,10 +75,15 @@ class SensorCard extends StatelessWidget {
               children: [
                 Text(
                   value,
-                  style: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                  style: const TextStyle(
+                      fontSize: 26,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.textPrimary),
                 ),
                 const SizedBox(width: 2),
-                Text(unit, style: const TextStyle(fontSize: 14, color: AppColors.textSecondary)),
+                Text(unit,
+                    style: const TextStyle(
+                        fontSize: 14, color: AppColors.textSecondary)),
               ],
             ),
           ],
