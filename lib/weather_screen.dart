@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'weather_service.dart'; // Se conecta con el Servicio
-import 'weather_model.dart';   // Se conecta con el Modelo
+// Se conecta con el Modelo
 
 class GreenWeatherScreen extends StatefulWidget {
+  const GreenWeatherScreen({super.key});
+
   @override
   _GreenWeatherScreenState createState() => _GreenWeatherScreenState();
 }
@@ -21,7 +23,7 @@ class _GreenWeatherScreenState extends State {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Clima Local - Green Tech'),
+        title: const Text('Clima Local - Green Tech'),
         backgroundColor: Colors.green,
       ),
       body: Center(
@@ -29,7 +31,7 @@ class _GreenWeatherScreenState extends State {
           future: futureWeather,
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
-              return CircularProgressIndicator();
+              return const CircularProgressIndicator();
             } else if (snapshot.hasError) {
               return Text('Error: ${snapshot.error}');
             } else if (snapshot.hasData) {
@@ -37,13 +39,13 @@ class _GreenWeatherScreenState extends State {
               return Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Text(data.cityName, style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold)),
+                  Text(data.cityName, style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold)),
                   Text('${data.temperature}°C', style: TextStyle(fontSize: 48, color: Colors.green[700])),
-                  Text(data.description.toUpperCase(), style: TextStyle(fontSize: 20)),
+                  Text(data.description.toUpperCase(), style: const TextStyle(fontSize: 20)),
                 ],
               );
             }
-            return Text('No hay datos disponibles.');
+            return const Text('No hay datos disponibles.');
           },
         ),
       ),

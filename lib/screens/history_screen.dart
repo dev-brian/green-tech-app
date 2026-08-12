@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../models/sensor_model.dart';
 import '../services/api_service.dart';
 import '../utils/colors.dart';
@@ -45,21 +46,38 @@ class _HistoryScreenState extends State<HistoryScreen> {
     return Expanded(
       child: Container(
         margin: const EdgeInsets.only(right: 8),
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 10),
         decoration: BoxDecoration(
-          color: AppColors.surfaceVariant,
+          color: AppColors.surface,
           borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppColors.border),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(title,
-                style: const TextStyle(
-                    color: AppColors.textSecondary, fontSize: 12)),
-            const SizedBox(height: 6),
-            Text(value,
-                style:
-                    const TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+            Text(
+              title,
+              style: GoogleFonts.inter(
+                color: AppColors.textSecondary,
+                fontSize: 11,
+                fontWeight: FontWeight.w400,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 4),
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: Text(
+                value,
+                style: GoogleFonts.poppins(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 15,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+            ),
           ],
         ),
       ),
@@ -104,8 +122,13 @@ class _HistoryScreenState extends State<HistoryScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('Historial'),
+        title: Text(
+          'Histórico de Métricas',
+          style: GoogleFonts.poppins(fontWeight: FontWeight.w700),
+        ),
+        backgroundColor: AppColors.secondary,
         actions: [
           IconButton(
             icon: const Icon(Icons.location_on_outlined),
@@ -117,154 +140,180 @@ class _HistoryScreenState extends State<HistoryScreen> {
       ),
       body: RefreshIndicator(
         onRefresh: _load,
-        child: LayoutBuilder(builder: (context, constraints) {
-          final wide = constraints.maxWidth > 720;
-          final padding = wide ? 24.0 : 16.0;
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 1000),
+            child: LayoutBuilder(builder: (context, constraints) {
+              final wide = constraints.maxWidth > 650;
+              final padding = wide ? 24.0 : 16.0;
 
-          return ListView(
-            padding: EdgeInsets.all(padding),
-            children: [
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(20),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text('Histórico de cultivo',
-                          style: TextStyle(
-                              fontSize: 22,
+              return ListView(
+                padding: EdgeInsets.all(padding),
+                children: [
+                  Card(
+                    color: AppColors.surface,
+                    child: Padding(
+                      padding: const EdgeInsets.all(20),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Histórico de cultivo',
+                            style: GoogleFonts.poppins(
+                              fontSize: 20,
                               fontWeight: FontWeight.w700,
-                              color: AppColors.textPrimary)),
-                      const SizedBox(height: 8),
-                      const Text(
-                        'Revisa el comportamiento de la temperatura y la humedad del suelo.',
-                        style: TextStyle(color: AppColors.textSecondary),
+                              color: AppColors.textPrimary,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            'Revisa el comportamiento de la temperatura y la humedad del suelo.',
+                            style: GoogleFonts.inter(
+                              color: AppColors.textSecondary,
+                              fontSize: 14,
+                            ),
+                          ),
+                          const SizedBox(height: 18),
+                          Wrap(
+                            runSpacing: 10,
+                            spacing: 10,
+                            children: _rangos.map((r) {
+                              final selected = r.$1 == _rango;
+                              return ChoiceChip(
+                                label: Text(r.$2),
+                                selected: selected,
+                                onSelected: (_) {
+                                  setState(() => _rango = r.$1);
+                                  _load();
+                                },
+                                selectedColor: AppColors.primary,
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 16, vertical: 10),
+                                labelStyle: GoogleFonts.inter(
+                                  color: selected
+                                      ? Colors.white
+                                      : AppColors.textPrimary,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                                backgroundColor: AppColors.surfaceVariant,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                showCheckmark: false,
+                              );
+                            }).toList(),
+                          ),
+                        ],
                       ),
-                      const SizedBox(height: 18),
-                      Wrap(
-                        runSpacing: 10,
-                        spacing: 10,
-                        children: _rangos.map((r) {
-                          final selected = r.$1 == _rango;
-                          return ChoiceChip(
-                            label: Text(r.$2),
-                            selected: selected,
-                            onSelected: (_) {
-                              setState(() => _rango = r.$1);
-                              _load();
-                            },
-                            selectedColor: AppColors.primary,
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 16, vertical: 10),
-                            labelStyle: TextStyle(
-                                color: selected
-                                    ? Colors.white
-                                    : AppColors.textPrimary,
-                                fontWeight: FontWeight.w600),
-                            backgroundColor: AppColors.surfaceVariant,
-                            shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(14)),
-                            showCheckmark: false,
-                          );
-                        }).toList(),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 20),
-              if (_loading) ...[
-                const SizedBox(height: 120),
-                const Center(child: CircularProgressIndicator()),
-                const SizedBox(height: 120),
-              ] else ...[
-                // Estadísticas rápidas
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    _statCard(
-                        'Temp. última',
-                        _temp.isNotEmpty
-                            ? '${_temp.last.value.toStringAsFixed(1)}°C'
-                            : '-'),
-                    _statCard(
-                        'Temp. avg',
-                        _temp.isNotEmpty
-                            ? _avg(_temp).toStringAsFixed(1) + '°C'
-                            : '-'),
-                    _statCard(
-                        'Temp. max',
-                        _temp.isNotEmpty
-                            ? _max(_temp).toStringAsFixed(1) + '°C'
-                            : '-'),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 18, 16, 16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Temperatura (°C)',
-                            style: Theme.of(context).textTheme.titleLarge),
-                        const SizedBox(height: 12),
-                        ChartWidget(
-                          points: _temp,
-                          color: AppColors.critico,
-                          height: wide ? 280 : 220,
-                          showLabels: true,
-                        ),
-                      ],
                     ),
                   ),
-                ),
-                const SizedBox(height: 24),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    _statCard(
-                        'Humed. última',
-                        _humedad.isNotEmpty
-                            ? '${_humedad.last.value.toStringAsFixed(0)}%'
-                            : '-'),
-                    _statCard(
-                        'Humed. avg',
-                        _humedad.isNotEmpty
-                            ? _avg(_humedad).toStringAsFixed(0) + '%'
-                            : '-'),
-                    _statCard(
-                        'Humed. min',
-                        _humedad.isNotEmpty
-                            ? _min(_humedad).toStringAsFixed(0) + '%'
-                            : '-'),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 18, 16, 16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                  const SizedBox(height: 20),
+                  if (_loading) ...[
+                    const SizedBox(height: 120),
+                    const Center(child: CircularProgressIndicator(color: AppColors.primary)),
+                    const SizedBox(height: 120),
+                  ] else ...[
+                    // Estadísticas rápidas
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text('Humedad del suelo (%)',
-                            style: Theme.of(context).textTheme.titleLarge),
-                        const SizedBox(height: 12),
-                        ChartWidget(
-                          points: _humedad,
-                          color: AppColors.primary,
-                          height: wide ? 280 : 220,
-                          showLabels: true,
-                        ),
+                        _statCard(
+                            'Temp. última',
+                            _temp.isNotEmpty
+                                ? '${_temp.last.value.toStringAsFixed(1)}°C'
+                                : '-'),
+                        _statCard(
+                            'Temp. avg',
+                            _temp.isNotEmpty
+                                ? '${_avg(_temp).toStringAsFixed(1)}°C'
+                                : '-'),
+                        _statCard(
+                            'Temp. max',
+                            _temp.isNotEmpty
+                                ? '${_max(_temp).toStringAsFixed(1)}°C'
+                                : '-'),
                       ],
                     ),
-                  ),
-                ),
-                const SizedBox(height: 24),
-              ],
-            ],
-          );
-        }),
+                    const SizedBox(height: 12),
+                    Card(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 18, 16, 16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Temperatura (°C)',
+                              style: GoogleFonts.poppins(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.textPrimary,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            ChartWidget(
+                              points: _temp,
+                              color: AppColors.accentOrange,
+                              height: wide ? 280 : 220,
+                              showLabels: true,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        _statCard(
+                            'Humed. última',
+                            _humedad.isNotEmpty
+                                ? '${_humedad.last.value.toStringAsFixed(0)}%'
+                                : '-'),
+                        _statCard(
+                            'Humed. avg',
+                            _humedad.isNotEmpty
+                                ? '${_avg(_humedad).toStringAsFixed(0)}%'
+                                : '-'),
+                        _statCard(
+                            'Humed. min',
+                            _humedad.isNotEmpty
+                                ? '${_min(_humedad).toStringAsFixed(0)}%'
+                                : '-'),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Card(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 18, 16, 16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Humedad del suelo (%)',
+                              style: GoogleFonts.poppins(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.textPrimary,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            ChartWidget(
+                              points: _humedad,
+                              color: AppColors.primary,
+                              height: wide ? 280 : 220,
+                              showLabels: true,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                  ],
+                ],
+              );
+            }),
+          ),
+        ),
       ),
     );
   }

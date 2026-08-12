@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'screens/dashboard_screen.dart';
+import 'screens/splash_screen.dart';
+import 'utils/colors.dart';
 
 void main() {
   runApp(const MyApp());
@@ -13,10 +14,8 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'Green Tech App',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        primarySwatch: Colors.green,
-      ),
-      home: const DashboardScreen(),
+      theme: buildAppTheme(),
+      home: const SplashScreen(),
     );
   }
 }

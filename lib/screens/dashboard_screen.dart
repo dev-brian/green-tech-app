@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import '../models/sensor_model.dart';
 import '../services/api_service.dart';
@@ -78,8 +79,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('GREEN TECH'),
+        title: Text(
+          'GREEN TECH',
+          style: GoogleFonts.poppins(
+            fontWeight: FontWeight.w800,
+            letterSpacing: 1.2,
+          ),
+        ),
+        backgroundColor: AppColors.secondary,
         actions: [
           IconButton(
             icon: const Icon(Icons.location_on_outlined),
@@ -93,94 +102,119 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ],
       ),
       body: _loading || _reading == null
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
           : RefreshIndicator(
               onRefresh: _loadData,
-              child: LayoutBuilder(builder: (context, constraints) {
-                final wide = constraints.maxWidth > 720;
-                final gridCount = wide ? 4 : 2;
-                final cardRatio = wide ? 1.05 : 1.15;
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 1000),
+                  child: LayoutBuilder(builder: (context, constraints) {
+                    final wide = constraints.maxWidth > 650;
+                    final maxCrossExtent = wide ? 240.0 : 180.0;
 
-                return ListView(
-                  padding: const EdgeInsets.all(18),
-                  children: [
-                    _buildHeaderSection(_reading!),
-                    const SizedBox(height: 20),
-                    Text('Sensores en tiempo real',
-                        style: Theme.of(context).textTheme.titleLarge),
-                    const SizedBox(height: 12),
-                    GridView.count(
-                      crossAxisCount: gridCount,
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      mainAxisSpacing: 14,
-                      crossAxisSpacing: 14,
-                      childAspectRatio: cardRatio,
+                    return ListView(
+                      padding: const EdgeInsets.all(18),
                       children: [
-                        SensorCard(
-                          label: 'Temperatura',
-                          value: _reading!.temperatura.toStringAsFixed(1),
-                          unit: '°C',
-                          icon: Icons.thermostat,
-                          estado: _reading!.estadoTemperatura,
-                          onTap: _goToDetail,
-                        ),
-                        SensorCard(
-                          label: 'Humedad ambiental',
-                          value: _reading!.humedadAire.toStringAsFixed(0),
-                          unit: '%',
-                          icon: Icons.water_drop_outlined,
-                          estado: _reading!.estadoHumedadAire,
-                          onTap: _goToDetail,
-                        ),
-                        SensorCard(
-                          label: 'Humedad del suelo',
-                          value: _reading!.humedadSuelo.toStringAsFixed(0),
-                          unit: '%',
-                          icon: Icons.grass,
-                          estado: _reading!.estadoHumedadSuelo,
-                          onTap: _goToDetail,
-                        ),
-                        _buildSensorInfoCard(_reading!),
-                      ],
-                    ),
-                    const SizedBox(height: 24),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text('Últimas 24 horas',
-                            style: Theme.of(context).textTheme.titleLarge),
-                        TextButton(
-                          onPressed: () => Navigator.of(context).push(
-                            MaterialPageRoute(
-                                builder: (_) => const HistoryScreen()),
+                        _buildHeaderSection(_reading!),
+                        const SizedBox(height: 24),
+                        Text(
+                          'Sensores en tiempo real',
+                          style: GoogleFonts.poppins(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.textPrimary,
                           ),
-                          child: const Text('Ver histórico'),
                         ),
+                        const SizedBox(height: 12),
+                        GridView(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
+                            maxCrossAxisExtent: maxCrossExtent,
+                            mainAxisSpacing: 14,
+                            crossAxisSpacing: 14,
+                            mainAxisExtent: 145,
+                          ),
+                          children: [
+                            SensorCard(
+                              label: 'Temperatura',
+                              value: _reading!.temperatura.toStringAsFixed(1),
+                              unit: '°C',
+                              icon: Icons.thermostat,
+                              estado: _reading!.estadoTemperatura,
+                              onTap: _goToDetail,
+                            ),
+                            SensorCard(
+                              label: 'Humedad ambiental',
+                              value: _reading!.humedadAire.toStringAsFixed(0),
+                              unit: '%',
+                              icon: Icons.water_drop_outlined,
+                              estado: _reading!.estadoHumedadAire,
+                              onTap: _goToDetail,
+                            ),
+                            SensorCard(
+                              label: 'Humedad del suelo',
+                              value: _reading!.humedadSuelo.toStringAsFixed(0),
+                              unit: '%',
+                              icon: Icons.grass,
+                              estado: _reading!.estadoHumedadSuelo,
+                              onTap: _goToDetail,
+                            ),
+                            _buildSensorInfoCard(_reading!),
+                          ],
+                        ),
+                        const SizedBox(height: 28),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              'Últimas 24 horas',
+                              style: GoogleFonts.poppins(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.textPrimary,
+                              ),
+                            ),
+                            TextButton(
+                              onPressed: () => Navigator.of(context).push(
+                                MaterialPageRoute(
+                                    builder: (_) => const HistoryScreen()),
+                              ),
+                              child: Text(
+                                'Ver histórico',
+                                style: GoogleFonts.inter(
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.secondary,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        Card(
+                          child: Padding(
+                            padding: const EdgeInsets.fromLTRB(14, 18, 18, 14),
+                            child: ChartWidget(
+                              points: _chartPoints,
+                              color: AppColors.primary,
+                              height: wide ? 260 : 200,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 20),
                       ],
-                    ),
-                    Card(
-                      child: Padding(
-                        padding: const EdgeInsets.fromLTRB(14, 18, 18, 14),
-                        child: ChartWidget(
-                          points: _chartPoints,
-                          color: AppColors.primary,
-                          height: wide ? 260 : 200,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                  ],
-                );
-              }),
+                    );
+                  }),
+                ),
+              ),
             ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _navIndex,
         onDestinationSelected: _onNavTap,
+        indicatorColor: AppColors.mintAccent.withValues(alpha: 0.4),
         destinations: const [
           NavigationDestination(
               icon: Icon(Icons.dashboard_outlined),
-              selectedIcon: Icon(Icons.dashboard),
+              selectedIcon: Icon(Icons.dashboard, color: AppColors.secondary),
               label: 'Inicio'),
           NavigationDestination(
               icon: Icon(Icons.show_chart), label: 'Histórico'),
@@ -195,8 +229,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Widget _buildHeaderSection(SensorReading reading) {
     return Card(
+      color: AppColors.surface,
       child: Padding(
-        padding: const EdgeInsets.all(18),
+        padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -205,25 +240,33 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: AppColors.primary.withValues(alpha: 0.12),
+                    color: AppColors.mintAccent.withValues(alpha: 0.3),
                     borderRadius: BorderRadius.circular(16),
                   ),
-                  child:
-                      const Icon(Icons.eco, color: AppColors.primary, size: 26),
+                  child: const Icon(Icons.eco, color: AppColors.primary, size: 28),
                 ),
                 const SizedBox(width: 14),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Bienvenido',
-                          style: Theme.of(context).textTheme.bodyLarge),
+                      Text(
+                        'Bienvenido',
+                        style: GoogleFonts.inter(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w400,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
                       const SizedBox(height: 2),
-                      Text('Monitoreo de cultivo en tiempo real',
-                          style: Theme.of(context)
-                              .textTheme
-                              .titleLarge
-                              ?.copyWith(fontSize: 22)),
+                      Text(
+                        'Monitoreo de cultivo',
+                        style: GoogleFonts.poppins(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -239,7 +282,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     AppColors.labelForEstado(reading.estadoGeneral),
                     AppColors.forEstado(reading.estadoGeneral)),
                 _buildStatusChip(
-                    'Ubicación', reading.ubicacion, AppColors.primaryDark),
+                    'Ubicación', reading.ubicacion, AppColors.secondary),
                 _buildStatusChip(
                     'Última',
                     DateFormat('dd/MM · HH:mm').format(reading.timestamp),
@@ -254,21 +297,33 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Widget _buildStatusChip(String label, String value, Color color) {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 14),
+      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withValues(alpha: 0.3), width: 1),
       ),
       child: Text.rich(
         TextSpan(
           children: [
             TextSpan(
-                text: '$label: ',
-                style: const TextStyle(fontWeight: FontWeight.w600)),
-            TextSpan(text: value),
+              text: '$label: ',
+              style: GoogleFonts.inter(
+                fontWeight: FontWeight.w600,
+                fontSize: 12,
+                color: AppColors.textPrimary,
+              ),
+            ),
+            TextSpan(
+              text: value,
+              style: GoogleFonts.inter(
+                fontWeight: FontWeight.w500,
+                fontSize: 12,
+                color: color,
+              ),
+            ),
           ],
         ),
-        style: const TextStyle(fontSize: 13, color: AppColors.textPrimary),
       ),
     );
   }
@@ -283,24 +338,49 @@ class _DashboardScreenState extends State<DashboardScreen> {
       onTap: _goToDetail,
       borderRadius: BorderRadius.circular(16),
       child: Container(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: AppColors.primary,
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.primary.withValues(alpha: 0.25),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
         ),
-        child: const Column(
+        child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Icon(Icons.sensors, color: Colors.white, size: 28),
-            SizedBox(height: 12),
-            Text('Ver detalle',
-                style: TextStyle(
+            const Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Icon(Icons.sensors, color: Colors.white, size: 24),
+                Icon(Icons.arrow_forward_ios, color: Colors.white70, size: 14),
+              ],
+            ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Ver detalle',
+                  style: GoogleFonts.poppins(
                     color: Colors.white,
                     fontWeight: FontWeight.w700,
-                    fontSize: 16)),
-            Text('del sensor',
-                style: TextStyle(color: Colors.white70, fontSize: 13)),
+                    fontSize: 15,
+                  ),
+                ),
+                Text(
+                  'del sensor',
+                  style: GoogleFonts.inter(
+                    color: Colors.white70,
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
           ],
         ),
       ),

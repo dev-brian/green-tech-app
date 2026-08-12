@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../models/sensor_model.dart';
 import '../services/api_service.dart';
 import '../utils/colors.dart';
@@ -61,8 +62,13 @@ class _AlertsScreenState extends State<AlertsScreen> {
         _soloActivas ? _alerts.where((a) => a.activa).toList() : _alerts;
 
     return Scaffold(
+      backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('Alertas'),
+        title: Text(
+          'Alertas de Cultivo',
+          style: GoogleFonts.poppins(fontWeight: FontWeight.w700),
+        ),
+        backgroundColor: AppColors.secondary,
         actions: [
           IconButton(
             icon: const Icon(Icons.location_on_outlined),
@@ -73,39 +79,68 @@ class _AlertsScreenState extends State<AlertsScreen> {
         ],
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : Column(
-              children: [
-                Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  child: Row(
-                    children: [
-                      FilterChip(
-                        label: const Text('Solo activas'),
-                        selected: _soloActivas,
-                        onSelected: (v) => setState(() => _soloActivas = v),
-                        selectedColor:
-                            AppColors.critico.withValues(alpha: 0.15),
-                        showCheckmark: false,
-                      ),
-                    ],
-                  ),
-                ),
-                Expanded(
-                  child: visibles.isEmpty
-                      ? const Center(child: Text('No hay alertas para mostrar'))
-                      : RefreshIndicator(
-                          onRefresh: _load,
-                          child: ListView.builder(
-                            padding: const EdgeInsets.symmetric(horizontal: 16),
-                            itemCount: visibles.length,
-                            itemBuilder: (context, i) =>
-                                AlertTile(alert: visibles[i]),
+          ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+          : Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 800),
+                child: Column(
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Row(
+                        children: [
+                          FilterChip(
+                            label: Text(
+                              'Solo activas',
+                              style: GoogleFonts.inter(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: _soloActivas
+                                    ? AppColors.accentOrange
+                                    : AppColors.textPrimary,
+                              ),
+                            ),
+                            selected: _soloActivas,
+                            onSelected: (v) => setState(() => _soloActivas = v),
+                            selectedColor: AppColors.accentOrange.withValues(alpha: 0.15),
+                            backgroundColor: AppColors.surface,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(20),
+                              side: BorderSide(
+                                color: _soloActivas
+                                    ? AppColors.accentOrange
+                                    : AppColors.border,
+                              ),
+                            ),
+                            showCheckmark: false,
                           ),
-                        ),
+                        ],
+                      ),
+                    ),
+                    Expanded(
+                      child: visibles.isEmpty
+                          ? Center(
+                              child: Text(
+                                'No hay alertas para mostrar',
+                                style: GoogleFonts.inter(
+                                  color: AppColors.textSecondary,
+                                  fontSize: 15,
+                                ),
+                              ),
+                            )
+                          : RefreshIndicator(
+                              onRefresh: _load,
+                              child: ListView.builder(
+                                padding: const EdgeInsets.symmetric(horizontal: 16),
+                                itemCount: visibles.length,
+                                itemBuilder: (context, i) =>
+                                    AlertTile(alert: visibles[i]),
+                              ),
+                            ),
+                    ),
+                  ],
                 ),
-              ],
+              ),
             ),
     );
   }

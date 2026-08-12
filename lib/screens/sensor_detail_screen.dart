@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import '../models/sensor_model.dart';
 import '../services/api_service.dart';
@@ -52,8 +53,13 @@ class _SensorDetailScreenState extends State<SensorDetailScreen> {
   Widget build(BuildContext context) {
     final r = _reading;
     return Scaffold(
+      backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('Detalle del sensor'),
+        title: Text(
+          'Detalle del Sensor',
+          style: GoogleFonts.poppins(fontWeight: FontWeight.w700),
+        ),
+        backgroundColor: AppColors.secondary,
         actions: [
           IconButton(
             icon: const Icon(Icons.location_on_outlined),
@@ -63,81 +69,108 @@ class _SensorDetailScreenState extends State<SensorDetailScreen> {
         ],
       ),
       body: r == null
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
           : RefreshIndicator(
               onRefresh: _load,
-              child: ListView(
-                padding: const EdgeInsets.all(16),
-                children: [
-                  Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(18),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 800),
+                  child: ListView(
+                    padding: const EdgeInsets.all(18),
+                    children: [
+                      Card(
+                        color: AppColors.surface,
+                        child: Padding(
+                          padding: const EdgeInsets.all(20),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Container(
-                                padding: const EdgeInsets.all(10),
-                                decoration: BoxDecoration(
-                                  color:
-                                      AppColors.primary.withValues(alpha: 0.12),
-                                  shape: BoxShape.circle,
-                                ),
-                                child: const Icon(Icons.memory,
-                                    color: AppColors.primary),
+                              Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(12),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.mintAccent.withValues(alpha: 0.3),
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: const Icon(
+                                      Icons.memory,
+                                      color: AppColors.secondary,
+                                      size: 26,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 14),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          'ID del sensor',
+                                          style: GoogleFonts.inter(
+                                            fontSize: 13,
+                                            color: AppColors.textSecondary,
+                                          ),
+                                        ),
+                                        Text(
+                                          r.sensorId,
+                                          style: GoogleFonts.poppins(
+                                            fontWeight: FontWeight.w700,
+                                            fontSize: 18,
+                                            color: AppColors.textPrimary,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
                               ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text('ID del sensor',
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .bodyMedium),
-                                    Text(r.sensorId,
-                                        style: const TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 16)),
-                                  ],
-                                ),
+                              const Divider(height: 28),
+                              _infoRow(
+                                Icons.place_outlined,
+                                'Ubicación',
+                                r.ubicacion,
+                              ),
+                              const SizedBox(height: 12),
+                              _infoRow(
+                                Icons.access_time,
+                                'Última actualización',
+                                _hace(r.timestamp),
                               ),
                             ],
                           ),
-                          const Divider(height: 28),
-                          _infoRow(
-                              Icons.place_outlined, 'Ubicación', r.ubicacion),
-                          const SizedBox(height: 12),
-                          _infoRow(
-                            Icons.access_time,
-                            'Última actualización',
-                            _hace(r.timestamp),
-                          ),
-                        ],
+                        ),
                       ),
-                    ),
+                      const SizedBox(height: 24),
+                      Text(
+                        'Lecturas actuales',
+                        style: GoogleFonts.poppins(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                      _dataTile(
+                        'Temperatura',
+                        '${r.temperatura.toStringAsFixed(1)}°C',
+                        r.estadoTemperatura,
+                        Icons.thermostat,
+                      ),
+                      _dataTile(
+                        'Humedad del aire',
+                        '${r.humedadAire.toStringAsFixed(0)}%',
+                        r.estadoHumedadAire,
+                        Icons.water_drop_outlined,
+                      ),
+                      _dataTile(
+                        'Humedad del suelo',
+                        '${r.humedadSuelo.toStringAsFixed(0)}%',
+                        r.estadoHumedadSuelo,
+                        Icons.grass,
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 20),
-                  Text('Lecturas actuales',
-                      style: Theme.of(context).textTheme.titleLarge),
-                  const SizedBox(height: 12),
-                  _dataTile(
-                      'Temperatura',
-                      '${r.temperatura.toStringAsFixed(1)}°C',
-                      r.estadoTemperatura,
-                      Icons.thermostat),
-                  _dataTile(
-                      'Humedad del aire',
-                      '${r.humedadAire.toStringAsFixed(0)}%',
-                      r.estadoHumedadAire,
-                      Icons.water_drop_outlined),
-                  _dataTile(
-                      'Humedad del suelo',
-                      '${r.humedadSuelo.toStringAsFixed(0)}%',
-                      r.estadoHumedadSuelo,
-                      Icons.grass),
-                ],
+                ),
               ),
             ),
     );
@@ -153,11 +186,23 @@ class _SensorDetailScreenState extends State<SensorDetailScreen> {
   Widget _infoRow(IconData icon, String label, String value) {
     return Row(
       children: [
-        Icon(icon, size: 18, color: AppColors.textSecondary),
+        Icon(icon, size: 18, color: AppColors.secondary),
         const SizedBox(width: 8),
-        Text('$label: ',
-            style: const TextStyle(color: AppColors.textSecondary)),
-        Text(value, style: const TextStyle(fontWeight: FontWeight.w600)),
+        Text(
+          '$label: ',
+          style: GoogleFonts.inter(
+            color: AppColors.textSecondary,
+            fontSize: 13,
+          ),
+        ),
+        Text(
+          value,
+          style: GoogleFonts.inter(
+            fontWeight: FontWeight.w600,
+            fontSize: 13,
+            color: AppColors.textPrimary,
+          ),
+        ),
       ],
     );
   }
@@ -166,28 +211,49 @@ class _SensorDetailScreenState extends State<SensorDetailScreen> {
       String label, String value, EstadoNivel estado, IconData icon) {
     final color = AppColors.forEstado(estado);
     return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(14),
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.border),
         boxShadow: [
           BoxShadow(
-              color: Colors.black.withValues(alpha: 0.04),
-              blurRadius: 6,
-              offset: const Offset(0, 2))
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          )
         ],
       ),
       child: Row(
         children: [
-          Icon(icon, color: color),
-          const SizedBox(width: 12),
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, color: color, size: 22),
+          ),
+          const SizedBox(width: 14),
           Expanded(
-              child: Text(label,
-                  style: const TextStyle(fontWeight: FontWeight.w500))),
-          Text(value,
-              style: TextStyle(
-                  fontWeight: FontWeight.bold, color: color, fontSize: 16)),
+            child: Text(
+              label,
+              style: GoogleFonts.inter(
+                fontWeight: FontWeight.w500,
+                fontSize: 14,
+                color: AppColors.textPrimary,
+              ),
+            ),
+          ),
+          Text(
+            value,
+            style: GoogleFonts.poppins(
+              fontWeight: FontWeight.w700,
+              color: color,
+              fontSize: 16,
+            ),
+          ),
         ],
       ),
     );
