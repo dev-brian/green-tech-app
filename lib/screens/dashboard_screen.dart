@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../models/sensor_model.dart';
 import '../services/api_service.dart';
 import '../utils/colors.dart';
+import '../utils/neumorphism.dart';
 import '../widgets/chart_widget.dart';
 import '../widgets/location_picker_dialog.dart';
 import '../widgets/sensor_card.dart';
@@ -78,8 +79,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = isDark ? AppColors.darkTextPrimary : AppColors.textPrimary;
+    final bgColor = isDark ? AppColors.darkBackground : AppColors.background;
+
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: bgColor,
       appBar: AppBar(
         title: Text(
           'GREEN TECH',
@@ -90,6 +95,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ),
         backgroundColor: AppColors.secondary,
         actions: [
+          IconButton(
+            icon: Icon(
+              isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
+              color: Colors.white,
+            ),
+            tooltip: isDark ? 'Cambiar a Modo Claro' : 'Cambiar a Modo Oscuro',
+            onPressed: () => AppThemeController.toggleTheme(),
+          ),
           IconButton(
             icon: const Icon(Icons.location_on_outlined),
             tooltip: 'Cambiar ubicación',
@@ -115,14 +128,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     return ListView(
                       padding: const EdgeInsets.all(18),
                       children: [
-                        _buildHeaderSection(_reading!),
+                        _buildHeaderSection(_reading!, isDark),
                         const SizedBox(height: 24),
                         Text(
                           'Sensores en tiempo real',
                           style: GoogleFonts.poppins(
                             fontSize: 18,
                             fontWeight: FontWeight.w700,
-                            color: AppColors.textPrimary,
+                            color: textColor,
                           ),
                         ),
                         const SizedBox(height: 12),
@@ -160,7 +173,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               estado: _reading!.estadoHumedadSuelo,
                               onTap: _goToDetail,
                             ),
-                            _buildSensorInfoCard(_reading!),
+                            _buildSensorInfoCard(_reading!, isDark),
                           ],
                         ),
                         const SizedBox(height: 28),
@@ -172,7 +185,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               style: GoogleFonts.poppins(
                                 fontSize: 18,
                                 fontWeight: FontWeight.w700,
-                                color: AppColors.textPrimary,
+                                color: textColor,
                               ),
                             ),
                             TextButton(
@@ -190,7 +203,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             ),
                           ],
                         ),
-                        Card(
+                        Container(
+                          decoration: NeumorphismDecoration.extruded(
+                            context: context,
+                            isDark: isDark,
+                            borderRadius: 18,
+                          ),
                           child: Padding(
                             padding: const EdgeInsets.fromLTRB(14, 18, 18, 14),
                             child: ChartWidget(
@@ -210,7 +228,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       bottomNavigationBar: NavigationBar(
         selectedIndex: _navIndex,
         onDestinationSelected: _onNavTap,
-        indicatorColor: AppColors.mintAccent.withValues(alpha: 0.4),
+        indicatorColor: AppColors.mintAccent.withValues(alpha: 0.3),
         destinations: const [
           NavigationDestination(
               icon: Icon(Icons.dashboard_outlined),
@@ -227,9 +245,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _buildHeaderSection(SensorReading reading) {
-    return Card(
-      color: AppColors.surface,
+  Widget _buildHeaderSection(SensorReading reading, bool isDark) {
+    final textColor = isDark ? AppColors.darkTextPrimary : AppColors.textPrimary;
+    final subtextColor = isDark ? AppColors.darkTextSecondary : AppColors.textSecondary;
+
+    return Container(
+      decoration: NeumorphismDecoration.extruded(
+        context: context,
+        isDark: isDark,
+        borderRadius: 18,
+      ),
       child: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
@@ -240,7 +265,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: AppColors.mintAccent.withValues(alpha: 0.3),
+                    color: AppColors.mintAccent.withValues(alpha: isDark ? 0.2 : 0.3),
                     borderRadius: BorderRadius.circular(16),
                   ),
                   child: const Icon(Icons.eco, color: AppColors.primary, size: 28),
@@ -255,7 +280,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         style: GoogleFonts.inter(
                           fontSize: 14,
                           fontWeight: FontWeight.w400,
-                          color: AppColors.textSecondary,
+                          color: subtextColor,
                         ),
                       ),
                       const SizedBox(height: 2),
@@ -264,7 +289,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         style: GoogleFonts.poppins(
                           fontSize: 20,
                           fontWeight: FontWeight.w700,
-                          color: AppColors.textPrimary,
+                          color: textColor,
                         ),
                       ),
                     ],
@@ -280,13 +305,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 _buildStatusChip(
                     'Estado',
                     AppColors.labelForEstado(reading.estadoGeneral),
-                    AppColors.forEstado(reading.estadoGeneral)),
+                    AppColors.forEstado(reading.estadoGeneral),
+                    isDark),
                 _buildStatusChip(
-                    'Ubicación', reading.ubicacion, AppColors.secondary),
+                    'Ubicación', reading.ubicacion, AppColors.secondary, isDark),
                 _buildStatusChip(
                     'Última',
                     DateFormat('dd/MM · HH:mm').format(reading.timestamp),
-                    AppColors.textSecondary),
+                    subtextColor,
+                    isDark),
               ],
             )
           ],
@@ -295,13 +322,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _buildStatusChip(String label, String value, Color color) {
+  Widget _buildStatusChip(String label, String value, Color color, bool isDark) {
+    final textColor = isDark ? AppColors.darkTextPrimary : AppColors.textPrimary;
+
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
+        color: color.withValues(alpha: isDark ? 0.2 : 0.12),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withValues(alpha: 0.3), width: 1),
+        border: Border.all(color: color.withValues(alpha: isDark ? 0.4 : 0.3), width: 1),
       ),
       child: Text.rich(
         TextSpan(
@@ -311,7 +340,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               style: GoogleFonts.inter(
                 fontWeight: FontWeight.w600,
                 fontSize: 12,
-                color: AppColors.textPrimary,
+                color: textColor,
               ),
             ),
             TextSpan(
@@ -333,22 +362,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
         .push(MaterialPageRoute(builder: (_) => const SensorDetailScreen()));
   }
 
-  Widget _buildSensorInfoCard(SensorReading reading) {
+  Widget _buildSensorInfoCard(SensorReading reading, bool isDark) {
     return InkWell(
       onTap: _goToDetail,
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.circular(18),
       child: Container(
         padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: AppColors.primary,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.primary.withValues(alpha: 0.25),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ],
+        decoration: NeumorphismDecoration.glowingExtruded(
+          isDark: isDark,
+          accentColor: AppColors.secondary,
+          borderRadius: 18,
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -357,8 +380,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
             const Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Icon(Icons.sensors, color: Colors.white, size: 24),
-                Icon(Icons.arrow_forward_ios, color: Colors.white70, size: 14),
+                Icon(Icons.sensors, color: AppColors.secondary, size: 24),
+                Icon(Icons.arrow_forward_ios, color: AppColors.secondary, size: 14),
               ],
             ),
             Column(
@@ -367,7 +390,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 Text(
                   'Ver detalle',
                   style: GoogleFonts.poppins(
-                    color: Colors.white,
+                    color: isDark ? AppColors.darkTextPrimary : AppColors.textPrimary,
                     fontWeight: FontWeight.w700,
                     fontSize: 15,
                   ),
@@ -375,7 +398,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 Text(
                   'del sensor',
                   style: GoogleFonts.inter(
-                    color: Colors.white70,
+                    color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary,
                     fontSize: 12,
                   ),
                 ),

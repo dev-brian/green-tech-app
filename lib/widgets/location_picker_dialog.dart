@@ -67,14 +67,19 @@ class _LocationPickerDialogState extends State<_LocationPickerDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = isDark ? AppColors.darkTextPrimary : AppColors.textPrimary;
+    final subtextColor = isDark ? AppColors.darkTextSecondary : AppColors.textSecondary;
+
     return AlertDialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      backgroundColor: isDark ? AppColors.darkSurface : AppColors.surface,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
       title: Text(
         'Selecciona una ubicación',
         style: GoogleFonts.poppins(
           fontSize: 18,
           fontWeight: FontWeight.w700,
-          color: AppColors.textPrimary,
+          color: textColor,
         ),
       ),
       content: ConstrainedBox(
@@ -87,11 +92,17 @@ class _LocationPickerDialogState extends State<_LocationPickerDialog> {
               TextField(
                 controller: widget.controller,
                 autofocus: true,
-                style: GoogleFonts.inter(fontSize: 14),
+                style: GoogleFonts.inter(fontSize: 14, color: textColor),
                 decoration: InputDecoration(
                   hintText: 'Busca una ciudad o región',
-                  hintStyle: GoogleFonts.inter(color: AppColors.hint),
+                  hintStyle: GoogleFonts.inter(color: subtextColor),
                   prefixIcon: const Icon(Icons.search, color: AppColors.secondary),
+                  filled: true,
+                  fillColor: isDark ? AppColors.darkBackground : const Color(0xFFE2E8F0),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
+                  ),
                 ),
                 onSubmitted: (_) => _search(),
               ),
@@ -107,6 +118,7 @@ class _LocationPickerDialogState extends State<_LocationPickerDialog> {
                   ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 12),
                   ),
                 ),
@@ -123,7 +135,10 @@ class _LocationPickerDialogState extends State<_LocationPickerDialog> {
                   child: ListView.separated(
                     shrinkWrap: true,
                     itemCount: _options.length,
-                    separatorBuilder: (_, __) => const Divider(height: 1),
+                    separatorBuilder: (_, __) => Divider(
+                      height: 1,
+                      color: isDark ? AppColors.darkBorder : AppColors.border,
+                    ),
                     itemBuilder: (context, index) {
                       final option = _options[index];
                       return ListTile(
@@ -133,14 +148,14 @@ class _LocationPickerDialogState extends State<_LocationPickerDialog> {
                           style: GoogleFonts.inter(
                             fontWeight: FontWeight.w600,
                             fontSize: 14,
-                            color: AppColors.textPrimary,
+                            color: textColor,
                           ),
                         ),
                         subtitle: Text(
                           option.query,
                           style: GoogleFonts.inter(
                             fontSize: 12,
-                            color: AppColors.textSecondary,
+                            color: subtextColor,
                           ),
                         ),
                         onTap: () => Navigator.of(context).pop(option.query),
@@ -155,7 +170,7 @@ class _LocationPickerDialogState extends State<_LocationPickerDialog> {
                     'No se encontraron resultados. Prueba con otra búsqueda.',
                     style: GoogleFonts.inter(
                       fontSize: 13,
-                      color: AppColors.textSecondary,
+                      color: subtextColor,
                     ),
                   ),
                 ),
@@ -169,7 +184,7 @@ class _LocationPickerDialogState extends State<_LocationPickerDialog> {
           child: Text(
             'Cancelar',
             style: GoogleFonts.inter(
-              color: AppColors.textSecondary,
+              color: subtextColor,
               fontWeight: FontWeight.w600,
             ),
           ),

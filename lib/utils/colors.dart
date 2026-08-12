@@ -1,39 +1,61 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/sensor_model.dart';
 
-/// Paleta central de la app según la Guía de Estilos UI/UX: Green Tech
+/// Controlador global para cambiar de tema (Modo Claro / Oscuro) dinámicamente
+class AppThemeController {
+  static final ValueNotifier<ThemeMode> themeMode = ValueNotifier(ThemeMode.light);
+
+  static Future<void> init() async {
+    final prefs = await SharedPreferences.getInstance();
+    final isDark = prefs.getBool('is_dark_mode') ?? false;
+    themeMode.value = isDark ? ThemeMode.dark : ThemeMode.light;
+  }
+
+  static Future<void> toggleTheme() async {
+    final newMode = themeMode.value == ThemeMode.light ? ThemeMode.dark : ThemeMode.light;
+    themeMode.value = newMode;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('is_dark_mode', newMode == ThemeMode.dark);
+  }
+
+  static bool get isDark => themeMode.value == ThemeMode.dark;
+}
+
+/// Paleta Bio-Tech y Neumórfica de la app
 class AppColors {
   AppColors._();
 
-  // Colorimetría oficial del handoff
-  static const Color primary = Color(0xFF32A852); // Organic Green
-  static const Color secondary = Color(0xFF0056B3); // Tech Blue
-  static const Color mintAccent = Color(0xFF84F2D0); // Mint Accent
-  static const Color surface = Color(0xFFFFFFFF); // Surface White
-  static const Color background = Color(0xFFF8F9FA); // Background Light
-  static const Color textPrimary = Color(0xFF2C3E50); // Charcoal Text
-  static const Color accentOrange = Color(0xFFF39C12); // Accent Orange
+  // Colorimetría Bio-Tech vibrante
+  static const Color primary = Color(0xFF10B981); // Bio Emerald
+  static const Color primaryDark = Color(0xFF059669);
+  static const Color secondary = Color(0xFF0284C7); // Tech Sapphire
+  static const Color secondaryDark = Color(0xFF0369A1);
+  static const Color mintAccent = Color(0xFF34D399); // Mint Glow Accent
+  static const Color accentOrange = Color(0xFFF59E0B); // Warning Amber
+  static const Color critico = Color(0xFFEF4444); // Danger Rose
 
-  // Colores secundarios y variantes
-  static const Color primaryLight = Color(0xFF5CDA7E);
-  static const Color primaryDark = Color(0xFF237D3B);
-  static const Color textSecondary = Color(0xFF5A6B7C);
-  static const Color hint = Color(0xFF94A3B8);
-  static const Color border = Color(0xFFE2E8F0);
-  static const Color surfaceVariant = Color(0xFFEDF2F7);
+  // Fondos y Superficies Neumórficas (Modo Claro)
+  static const Color background = Color(0xFFEAEFF5);
+  static const Color surface = Color(0xFFEAEFF5);
+  static const Color textPrimary = Color(0xFF1E293B);
+  static const Color textSecondary = Color(0xFF64748B);
+  static const Color border = Color(0xFFCBD5E1);
 
-  // Estados de Sensores / Alertas
-  static const Color normal = Color(0xFF32A852); // Organic Green
-  static const Color alerta = Color(0xFFF39C12); // Accent Orange
-  static const Color critico = Color(0xFFE74C3C); // Crítico / Destructivo
+  // Fondos y Superficies Neumórficas (Modo Oscuro)
+  static const Color darkBackground = Color(0xFF0F172A);
+  static const Color darkSurface = Color(0xFF1E293B);
+  static const Color darkTextPrimary = Color(0xFFF8FAFC);
+  static const Color darkTextSecondary = Color(0xFF94A3B8);
+  static const Color darkBorder = Color(0xFF334155);
 
   static Color forEstado(EstadoNivel estado) {
     switch (estado) {
       case EstadoNivel.normal:
-        return normal;
+        return primary;
       case EstadoNivel.alerta:
-        return alerta;
+        return accentOrange;
       case EstadoNivel.critico:
         return critico;
     }
@@ -62,7 +84,7 @@ class AppColors {
   }
 }
 
-/// Tema global de Material 3 usado en main.dart
+/// Tema global de Material 3 en Modo Claro
 ThemeData buildAppTheme() {
   const colorScheme = ColorScheme.light(
     primary: AppColors.primary,
@@ -71,8 +93,6 @@ ThemeData buildAppTheme() {
     onSecondary: Colors.white,
     surface: AppColors.surface,
     onSurface: AppColors.textPrimary,
-    surfaceContainerHighest: AppColors.surfaceVariant,
-    onSurfaceVariant: AppColors.textSecondary,
     outline: AppColors.border,
     error: AppColors.critico,
     onError: Colors.white,
@@ -94,40 +114,29 @@ ThemeData buildAppTheme() {
       titleTextStyle: poppinsTextTheme.titleLarge?.copyWith(
         color: Colors.white,
         fontSize: 20,
-        fontWeight: FontWeight.w600,
+        fontWeight: FontWeight.w700,
       ),
       iconTheme: const IconThemeData(color: Colors.white),
     ),
     cardTheme: CardThemeData(
       color: AppColors.surface,
-      elevation: 0.5,
-      shadowColor: Colors.black.withValues(alpha: 0.05),
+      elevation: 0,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: const BorderSide(color: AppColors.border, width: 1),
+        borderRadius: BorderRadius.circular(18),
       ),
       margin: EdgeInsets.zero,
     ),
     textTheme: baseTextTheme.copyWith(
-      // H1 - Poppins Black (900) - 24px/32px
       displayLarge: poppinsTextTheme.displayLarge?.copyWith(
         fontSize: 32,
         fontWeight: FontWeight.w900,
         color: AppColors.textPrimary,
       ),
-      // H1 Móvil / Headline
-      headlineLarge: poppinsTextTheme.headlineLarge?.copyWith(
-        fontSize: 24,
-        fontWeight: FontWeight.w900,
-        color: AppColors.textPrimary,
-      ),
-      // H2 - Poppins Bold (700) - 20px/24px
       headlineMedium: poppinsTextTheme.headlineMedium?.copyWith(
         fontSize: 22,
         fontWeight: FontWeight.w700,
         color: AppColors.textPrimary,
       ),
-      // H3 - Poppins SemiBold (600) - 18px/20px
       titleLarge: poppinsTextTheme.titleLarge?.copyWith(
         fontSize: 18,
         fontWeight: FontWeight.w600,
@@ -138,69 +147,106 @@ ThemeData buildAppTheme() {
         fontWeight: FontWeight.w600,
         color: AppColors.textPrimary,
       ),
-      // Body Regular (400) - 16px
       bodyLarge: baseTextTheme.bodyLarge?.copyWith(
         fontSize: 16,
         fontWeight: FontWeight.w400,
         color: AppColors.textPrimary,
       ),
-      // Body Medium (500) - 14px
       bodyMedium: baseTextTheme.bodyMedium?.copyWith(
         fontSize: 14,
         fontWeight: FontWeight.w500,
         color: AppColors.textSecondary,
       ),
-      // Caption Light (300) - 12px
       bodySmall: baseTextTheme.bodySmall?.copyWith(
         fontSize: 12,
-        fontWeight: FontWeight.w300,
+        fontWeight: FontWeight.w400,
         color: AppColors.textSecondary,
       ),
     ),
-    elevatedButtonTheme: ElevatedButtonThemeData(
-      style: ElevatedButton.styleFrom(
-        backgroundColor: AppColors.primary,
-        foregroundColor: Colors.white,
-        elevation: 0,
-        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 24),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        textStyle: poppinsTextTheme.titleMedium?.copyWith(
-          fontSize: 15,
-          fontWeight: FontWeight.w600,
-        ),
+  );
+}
+
+/// Tema global de Material 3 en Modo Oscuro
+ThemeData buildDarkAppTheme() {
+  const colorScheme = ColorScheme.dark(
+    primary: AppColors.primary,
+    onPrimary: Colors.white,
+    secondary: AppColors.secondary,
+    onSecondary: Colors.white,
+    surface: AppColors.darkSurface,
+    onSurface: AppColors.darkTextPrimary,
+    outline: AppColors.darkBorder,
+    error: AppColors.critico,
+    onError: Colors.white,
+  );
+
+  final baseTextTheme = GoogleFonts.interTextTheme(ThemeData.dark().textTheme);
+  final poppinsTextTheme = GoogleFonts.poppinsTextTheme(ThemeData.dark().textTheme);
+
+  return ThemeData(
+    useMaterial3: true,
+    brightness: Brightness.dark,
+    scaffoldBackgroundColor: AppColors.darkBackground,
+    colorScheme: colorScheme,
+    appBarTheme: AppBarTheme(
+      backgroundColor: const Color(0xFF0B1120),
+      foregroundColor: Colors.white,
+      elevation: 0,
+      centerTitle: true,
+      surfaceTintColor: Colors.transparent,
+      titleTextStyle: poppinsTextTheme.titleLarge?.copyWith(
+        color: Colors.white,
+        fontSize: 20,
+        fontWeight: FontWeight.w700,
       ),
+      iconTheme: const IconThemeData(color: Colors.white),
     ),
-    outlinedButtonTheme: OutlinedButtonThemeData(
-      style: OutlinedButton.styleFrom(
-        foregroundColor: AppColors.secondary,
-        backgroundColor: AppColors.surface,
-        side: const BorderSide(color: AppColors.border),
-        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 24),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        textStyle: baseTextTheme.bodyMedium?.copyWith(
-          fontSize: 14,
-          fontWeight: FontWeight.w600,
-        ),
+    cardTheme: CardThemeData(
+      color: AppColors.darkSurface,
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(18),
       ),
+      margin: EdgeInsets.zero,
     ),
-    inputDecorationTheme: InputDecorationTheme(
-      filled: true,
-      fillColor: AppColors.surface,
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: AppColors.border),
+    textTheme: baseTextTheme.copyWith(
+      displayLarge: poppinsTextTheme.displayLarge?.copyWith(
+        fontSize: 32,
+        fontWeight: FontWeight.w900,
+        color: AppColors.darkTextPrimary,
       ),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: AppColors.border),
+      headlineMedium: poppinsTextTheme.headlineMedium?.copyWith(
+        fontSize: 22,
+        fontWeight: FontWeight.w700,
+        color: AppColors.darkTextPrimary,
       ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: AppColors.primary, width: 2),
+      titleLarge: poppinsTextTheme.titleLarge?.copyWith(
+        fontSize: 18,
+        fontWeight: FontWeight.w600,
+        color: AppColors.darkTextPrimary,
       ),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      hintStyle: const TextStyle(color: AppColors.hint),
+      titleMedium: poppinsTextTheme.titleMedium?.copyWith(
+        fontSize: 16,
+        fontWeight: FontWeight.w600,
+        color: AppColors.darkTextPrimary,
+      ),
+      bodyLarge: baseTextTheme.bodyLarge?.copyWith(
+        fontSize: 16,
+        fontWeight: FontWeight.w400,
+        color: AppColors.darkTextPrimary,
+      ),
+      bodyMedium: baseTextTheme.bodyMedium?.copyWith(
+        fontSize: 14,
+        fontWeight: FontWeight.w500,
+        color: AppColors.darkTextSecondary,
+      ),
+      bodySmall: baseTextTheme.bodySmall?.copyWith(
+        fontSize: 12,
+        fontWeight: FontWeight.w400,
+        color: AppColors.darkTextSecondary,
+      ),
     ),
   );
 }
+
 

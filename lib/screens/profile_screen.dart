@@ -8,6 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../services/firebase_service.dart';
 import '../utils/colors.dart';
+import '../utils/neumorphism.dart';
 import 'login_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -80,17 +81,31 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final email =
         FirebaseService.instance.currentUserEmail ?? 'usuario@greentech.com';
 
+    final textColor = isDark ? AppColors.darkTextPrimary : AppColors.textPrimary;
+    final subtextColor = isDark ? AppColors.darkTextSecondary : AppColors.textSecondary;
+    final bgColor = isDark ? AppColors.darkBackground : AppColors.background;
+
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: bgColor,
       appBar: AppBar(
         title: Text(
           'Perfil de Usuario',
           style: GoogleFonts.poppins(fontWeight: FontWeight.w700),
         ),
         backgroundColor: AppColors.secondary,
+        actions: [
+          IconButton(
+            icon: Icon(
+              isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
+              color: Colors.white,
+            ),
+            onPressed: () => AppThemeController.toggleTheme(),
+          ),
+        ],
       ),
       body: Center(
         child: ConstrainedBox(
@@ -98,8 +113,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
           child: ListView(
             padding: const EdgeInsets.all(20),
             children: [
-              Card(
-                color: AppColors.surface,
+              Container(
+                decoration: NeumorphismDecoration.extruded(
+                  context: context,
+                  isDark: isDark,
+                  borderRadius: 20,
+                ),
                 child: Padding(
                   padding: const EdgeInsets.all(24),
                   child: Column(
@@ -109,7 +128,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         children: [
                           CircleAvatar(
                             radius: 50,
-                            backgroundColor: AppColors.mintAccent.withValues(alpha: 0.4),
+                            backgroundColor: AppColors.mintAccent.withValues(alpha: isDark ? 0.3 : 0.4),
                             backgroundImage: _imagePath != null
                                 ? FileImage(File(_imagePath!))
                                 : null,
@@ -126,14 +145,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             bottom: -4,
                             child: Container(
                               decoration: BoxDecoration(
-                                color: AppColors.surface,
+                                color: isDark ? AppColors.darkSurface : AppColors.surface,
                                 shape: BoxShape.circle,
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withValues(alpha: 0.1),
-                                    blurRadius: 4,
-                                  ),
-                                ],
                               ),
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
@@ -165,14 +178,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         style: GoogleFonts.poppins(
                           fontWeight: FontWeight.w700,
                           fontSize: 18,
-                          color: AppColors.textPrimary,
+                          color: textColor,
                         ),
                       ),
                       const SizedBox(height: 4),
                       Text(
                         'Productor agrícola · Green Tech',
                         style: GoogleFonts.inter(
-                          color: AppColors.textSecondary,
+                          color: subtextColor,
                           fontSize: 13,
                         ),
                       ),
@@ -182,22 +195,40 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
               const SizedBox(height: 24),
               Text(
-                'Notificaciones y Alertas',
+                'Preferencias de la Aplicación',
                 style: GoogleFonts.poppins(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
-                  color: AppColors.textPrimary,
+                  color: textColor,
                 ),
               ),
               const SizedBox(height: 10),
-              Card(
-                color: AppColors.surface,
+              Container(
+                decoration: NeumorphismDecoration.extruded(
+                  context: context,
+                  isDark: isDark,
+                  borderRadius: 18,
+                ),
                 child: Column(
                   children: [
                     SwitchListTile(
                       title: Text(
+                        'Modo Oscuro Neumórfico',
+                        style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600, color: textColor),
+                      ),
+                      secondary: Icon(
+                        isDark ? Icons.dark_mode_rounded : Icons.light_mode_rounded,
+                        color: AppColors.primary,
+                      ),
+                      value: isDark,
+                      activeThumbColor: AppColors.primary,
+                      onChanged: (_) => AppThemeController.toggleTheme(),
+                    ),
+                    const Divider(height: 1, indent: 16, endIndent: 16),
+                    SwitchListTile(
+                      title: Text(
                         'Alertas de temperatura',
-                        style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w500),
+                        style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w500, color: textColor),
                       ),
                       value: _notifTemp,
                       activeThumbColor: AppColors.primary,
@@ -207,7 +238,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     SwitchListTile(
                       title: Text(
                         'Alertas de humedad ambiental',
-                        style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w500),
+                        style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w500, color: textColor),
                       ),
                       value: _notifHumedad,
                       activeThumbColor: AppColors.primary,
@@ -217,7 +248,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     SwitchListTile(
                       title: Text(
                         'Alertas de humedad del suelo',
-                        style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w500),
+                        style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w500, color: textColor),
                       ),
                       value: _notifSuelo,
                       activeThumbColor: AppColors.primary,

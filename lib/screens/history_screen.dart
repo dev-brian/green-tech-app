@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../models/sensor_model.dart';
 import '../services/api_service.dart';
 import '../utils/colors.dart';
+import '../utils/neumorphism.dart';
 import '../widgets/chart_widget.dart';
 import '../widgets/location_picker_dialog.dart';
 
@@ -42,15 +43,18 @@ class _HistoryScreenState extends State<HistoryScreen> {
   double _min(List<ChartPoint> pts) =>
       pts.map((p) => p.value).reduce((a, b) => a < b ? a : b);
 
-  Widget _statCard(String title, String value) {
+  Widget _statCard(String title, String value, bool isDark) {
+    final textColor = isDark ? AppColors.darkTextPrimary : AppColors.textPrimary;
+    final subtextColor = isDark ? AppColors.darkTextSecondary : AppColors.textSecondary;
+
     return Expanded(
       child: Container(
         margin: const EdgeInsets.only(right: 8),
         padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 10),
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.border),
+        decoration: NeumorphismDecoration.extruded(
+          context: context,
+          isDark: isDark,
+          borderRadius: 14,
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -58,7 +62,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
             Text(
               title,
               style: GoogleFonts.inter(
-                color: AppColors.textSecondary,
+                color: subtextColor,
                 fontSize: 11,
                 fontWeight: FontWeight.w400,
               ),
@@ -74,7 +78,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 style: GoogleFonts.poppins(
                   fontWeight: FontWeight.w700,
                   fontSize: 15,
-                  color: AppColors.textPrimary,
+                  color: textColor,
                 ),
               ),
             ),
@@ -121,8 +125,13 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = isDark ? AppColors.darkTextPrimary : AppColors.textPrimary;
+    final subtextColor = isDark ? AppColors.darkTextSecondary : AppColors.textSecondary;
+    final bgColor = isDark ? AppColors.darkBackground : AppColors.background;
+
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: bgColor,
       appBar: AppBar(
         title: Text(
           'Histórico de Métricas',
@@ -130,6 +139,13 @@ class _HistoryScreenState extends State<HistoryScreen> {
         ),
         backgroundColor: AppColors.secondary,
         actions: [
+          IconButton(
+            icon: Icon(
+              isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
+              color: Colors.white,
+            ),
+            onPressed: () => AppThemeController.toggleTheme(),
+          ),
           IconButton(
             icon: const Icon(Icons.location_on_outlined),
             tooltip: 'Cambiar ubicación',
@@ -150,8 +166,12 @@ class _HistoryScreenState extends State<HistoryScreen> {
               return ListView(
                 padding: EdgeInsets.all(padding),
                 children: [
-                  Card(
-                    color: AppColors.surface,
+                  Container(
+                    decoration: NeumorphismDecoration.extruded(
+                      context: context,
+                      isDark: isDark,
+                      borderRadius: 18,
+                    ),
                     child: Padding(
                       padding: const EdgeInsets.all(20),
                       child: Column(
@@ -162,14 +182,14 @@ class _HistoryScreenState extends State<HistoryScreen> {
                             style: GoogleFonts.poppins(
                               fontSize: 20,
                               fontWeight: FontWeight.w700,
-                              color: AppColors.textPrimary,
+                              color: textColor,
                             ),
                           ),
                           const SizedBox(height: 6),
                           Text(
                             'Revisa el comportamiento de la temperatura y la humedad del suelo.',
                             style: GoogleFonts.inter(
-                              color: AppColors.textSecondary,
+                              color: subtextColor,
                               fontSize: 14,
                             ),
                           ),
@@ -192,10 +212,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
                                 labelStyle: GoogleFonts.inter(
                                   color: selected
                                       ? Colors.white
-                                      : AppColors.textPrimary,
+                                      : textColor,
                                   fontWeight: FontWeight.w600,
                                 ),
-                                backgroundColor: AppColors.surfaceVariant,
+                                backgroundColor: isDark ? AppColors.darkSurface : const Color(0xFFCBD5E1),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(12),
                                 ),
@@ -213,7 +233,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
                     const Center(child: CircularProgressIndicator(color: AppColors.primary)),
                     const SizedBox(height: 120),
                   ] else ...[
-                    // Estadísticas rápidas
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
@@ -221,21 +240,29 @@ class _HistoryScreenState extends State<HistoryScreen> {
                             'Temp. última',
                             _temp.isNotEmpty
                                 ? '${_temp.last.value.toStringAsFixed(1)}°C'
-                                : '-'),
+                                : '-',
+                            isDark),
                         _statCard(
                             'Temp. avg',
                             _temp.isNotEmpty
                                 ? '${_avg(_temp).toStringAsFixed(1)}°C'
-                                : '-'),
+                                : '-',
+                            isDark),
                         _statCard(
                             'Temp. max',
                             _temp.isNotEmpty
                                 ? '${_max(_temp).toStringAsFixed(1)}°C'
-                                : '-'),
+                                : '-',
+                            isDark),
                       ],
                     ),
                     const SizedBox(height: 12),
-                    Card(
+                    Container(
+                      decoration: NeumorphismDecoration.extruded(
+                        context: context,
+                        isDark: isDark,
+                        borderRadius: 18,
+                      ),
                       child: Padding(
                         padding: const EdgeInsets.fromLTRB(16, 18, 16, 16),
                         child: Column(
@@ -246,7 +273,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                               style: GoogleFonts.poppins(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w600,
-                                color: AppColors.textPrimary,
+                                color: textColor,
                               ),
                             ),
                             const SizedBox(height: 12),
@@ -268,21 +295,29 @@ class _HistoryScreenState extends State<HistoryScreen> {
                             'Humed. última',
                             _humedad.isNotEmpty
                                 ? '${_humedad.last.value.toStringAsFixed(0)}%'
-                                : '-'),
+                                : '-',
+                            isDark),
                         _statCard(
                             'Humed. avg',
                             _humedad.isNotEmpty
                                 ? '${_avg(_humedad).toStringAsFixed(0)}%'
-                                : '-'),
+                                : '-',
+                            isDark),
                         _statCard(
                             'Humed. min',
                             _humedad.isNotEmpty
                                 ? '${_min(_humedad).toStringAsFixed(0)}%'
-                                : '-'),
+                                : '-',
+                            isDark),
                       ],
                     ),
                     const SizedBox(height: 12),
-                    Card(
+                    Container(
+                      decoration: NeumorphismDecoration.extruded(
+                        context: context,
+                        isDark: isDark,
+                        borderRadius: 18,
+                      ),
                       child: Padding(
                         padding: const EdgeInsets.fromLTRB(16, 18, 16, 16),
                         child: Column(
@@ -293,7 +328,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                               style: GoogleFonts.poppins(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w600,
-                                color: AppColors.textPrimary,
+                                color: textColor,
                               ),
                             ),
                             const SizedBox(height: 12),

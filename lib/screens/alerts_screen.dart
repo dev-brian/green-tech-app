@@ -58,11 +58,16 @@ class _AlertsScreenState extends State<AlertsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = isDark ? AppColors.darkTextPrimary : AppColors.textPrimary;
+    final subtextColor = isDark ? AppColors.darkTextSecondary : AppColors.textSecondary;
+    final bgColor = isDark ? AppColors.darkBackground : AppColors.background;
+
     final visibles =
         _soloActivas ? _alerts.where((a) => a.activa).toList() : _alerts;
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: bgColor,
       appBar: AppBar(
         title: Text(
           'Alertas de Cultivo',
@@ -70,6 +75,13 @@ class _AlertsScreenState extends State<AlertsScreen> {
         ),
         backgroundColor: AppColors.secondary,
         actions: [
+          IconButton(
+            icon: Icon(
+              isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
+              color: Colors.white,
+            ),
+            onPressed: () => AppThemeController.toggleTheme(),
+          ),
           IconButton(
             icon: const Icon(Icons.location_on_outlined),
             tooltip: 'Cambiar ubicación',
@@ -97,19 +109,19 @@ class _AlertsScreenState extends State<AlertsScreen> {
                                 fontWeight: FontWeight.w600,
                                 color: _soloActivas
                                     ? AppColors.accentOrange
-                                    : AppColors.textPrimary,
+                                    : textColor,
                               ),
                             ),
                             selected: _soloActivas,
                             onSelected: (v) => setState(() => _soloActivas = v),
-                            selectedColor: AppColors.accentOrange.withValues(alpha: 0.15),
-                            backgroundColor: AppColors.surface,
+                            selectedColor: AppColors.accentOrange.withValues(alpha: isDark ? 0.25 : 0.15),
+                            backgroundColor: isDark ? AppColors.darkSurface : AppColors.surface,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(20),
                               side: BorderSide(
                                 color: _soloActivas
                                     ? AppColors.accentOrange
-                                    : AppColors.border,
+                                    : (isDark ? AppColors.darkBorder : AppColors.border),
                               ),
                             ),
                             showCheckmark: false,
@@ -123,7 +135,7 @@ class _AlertsScreenState extends State<AlertsScreen> {
                               child: Text(
                                 'No hay alertas para mostrar',
                                 style: GoogleFonts.inter(
-                                  color: AppColors.textSecondary,
+                                  color: subtextColor,
                                   fontSize: 15,
                                 ),
                               ),

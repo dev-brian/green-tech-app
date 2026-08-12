@@ -3,8 +3,9 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import '../models/sensor_model.dart';
 import '../utils/colors.dart';
+import '../utils/neumorphism.dart';
 
-/// Fila de la lista de Alertas según la Guía de Estilos Green Tech
+/// Fila de la lista de Alertas con Soft Neumorphism
 class AlertTile extends StatelessWidget {
   final AlertItem alert;
 
@@ -12,30 +13,31 @@ class AlertTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final color = AppColors.forEstado(alert.nivel);
     final fecha = DateFormat('dd/MM/yyyy · HH:mm').format(alert.fecha);
+
+    final textColor = isDark ? AppColors.darkTextPrimary : AppColors.textPrimary;
+    final subtextColor = isDark ? AppColors.darkTextSecondary : AppColors.textSecondary;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.border, width: 1),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
-          ),
-        ],
+      decoration: NeumorphismDecoration.extruded(
+        context: context,
+        isDark: isDark,
+        borderRadius: 16,
+        border: Border.all(
+          color: isDark ? AppColors.darkBorder : AppColors.border,
+          width: 1,
+        ),
       ),
       child: Row(
         children: [
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.12),
+              color: color.withValues(alpha: isDark ? 0.2 : 0.12),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(AppColors.iconForEstado(alert.nivel), color: color, size: 22),
@@ -50,7 +52,7 @@ class AlertTile extends StatelessWidget {
                   style: GoogleFonts.poppins(
                     fontWeight: FontWeight.w600,
                     fontSize: 14,
-                    color: AppColors.textPrimary,
+                    color: textColor,
                   ),
                 ),
                 const SizedBox(height: 4),
@@ -59,7 +61,7 @@ class AlertTile extends StatelessWidget {
                   style: GoogleFonts.inter(
                     fontSize: 12,
                     fontWeight: FontWeight.w300,
-                    color: AppColors.textSecondary,
+                    color: subtextColor,
                   ),
                 ),
               ],
@@ -70,7 +72,7 @@ class AlertTile extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             decoration: BoxDecoration(
               color: (alert.activa ? AppColors.accentOrange : AppColors.primary)
-                  .withValues(alpha: 0.12),
+                  .withValues(alpha: isDark ? 0.25 : 0.12),
               borderRadius: BorderRadius.circular(20),
             ),
             child: Text(

@@ -5,7 +5,7 @@ import 'package:intl/intl.dart';
 import '../models/sensor_model.dart';
 import '../utils/colors.dart';
 
-/// Gráfica de línea limpia y responsiva basada en la Guía de Estilos Green Tech.
+/// Gráfica de línea limpia y responsiva basada en Neumorfismo y Guía de Estilos Green Tech.
 class ChartWidget extends StatelessWidget {
   final List<ChartPoint> points;
   final Color color;
@@ -22,13 +22,17 @@ class ChartWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final labelColor = isDark ? AppColors.darkTextSecondary : AppColors.textSecondary;
+    final gridLineColor = isDark ? AppColors.darkBorder.withValues(alpha: 0.5) : AppColors.border;
+
     if (points.isEmpty) {
       return SizedBox(
         height: height,
         child: Center(
           child: Text(
             'Sin datos disponibles',
-            style: GoogleFonts.inter(fontSize: 14, color: AppColors.textSecondary),
+            style: GoogleFonts.inter(fontSize: 14, color: labelColor),
           ),
         ),
       );
@@ -63,7 +67,7 @@ class ChartWidget extends StatelessWidget {
             drawVerticalLine: false,
             horizontalInterval: (maxY - minY) / 4 > 0 ? (maxY - minY) / 4 : 1,
             getDrawingHorizontalLine: (_) => FlLine(
-              color: AppColors.border.withValues(alpha: 0.6),
+              color: gridLineColor,
               strokeWidth: 1,
             ),
           ),
@@ -81,7 +85,7 @@ class ChartWidget extends StatelessWidget {
                   style: GoogleFonts.inter(
                     fontSize: 10,
                     fontWeight: FontWeight.w400,
-                    color: AppColors.textSecondary,
+                    color: labelColor,
                   ),
                 ),
               ),
@@ -99,7 +103,7 @@ class ChartWidget extends StatelessWidget {
                     style: GoogleFonts.inter(
                       fontSize: 10,
                       fontWeight: FontWeight.w400,
-                      color: AppColors.textSecondary,
+                      color: labelColor,
                     ),
                   ),
                 ),
@@ -119,7 +123,7 @@ class ChartWidget extends StatelessWidget {
                 show: true,
                 gradient: LinearGradient(
                   colors: [
-                    color.withValues(alpha: 0.28),
+                    color.withValues(alpha: isDark ? 0.35 : 0.25),
                     color.withValues(alpha: 0.0),
                   ],
                   begin: Alignment.topCenter,
@@ -131,7 +135,7 @@ class ChartWidget extends StatelessWidget {
           lineTouchData: LineTouchData(
             handleBuiltInTouches: true,
             touchTooltipData: LineTouchTooltipData(
-              getTooltipColor: (_) => AppColors.textPrimary,
+              getTooltipColor: (_) => isDark ? const Color(0xFF334155) : AppColors.textPrimary,
               getTooltipItems: (touchedSpots) => touchedSpots.map((t) {
                 final timeLabel = formatTime(t.x);
                 return LineTooltipItem(
