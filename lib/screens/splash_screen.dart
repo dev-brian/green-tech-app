@@ -3,7 +3,6 @@ import '../services/firebase_service.dart';
 import '../utils/colors.dart';
 import 'dashboard_screen.dart';
 import 'login_screen.dart';
-
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
 

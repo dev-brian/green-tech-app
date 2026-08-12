@@ -1,0 +1,15 @@
+{
+  "configurations": [
+    {
+      "name": "Flutter Windows",
+      "includePath": [
+        "${workspaceFolder}/**",
+        "C:/src/flutter/bin/cache/artifacts/engine/windows-x64/cpp_client_wrapper/include",
+        "C:/src/flutter/engine/src/flutter/shell/platform/windows/client_wrapper/include"
+      ],
+      "cppStandard": "c++17",
+      "intelliSenseMode": "windows-msvc-x64"
+    }
+  ],
+  "version": 4
+}
