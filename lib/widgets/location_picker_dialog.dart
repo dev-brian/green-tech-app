@@ -68,8 +68,10 @@ class _LocationPickerDialogState extends State<_LocationPickerDialog> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textColor = isDark ? AppColors.darkTextPrimary : AppColors.textPrimary;
-    final subtextColor = isDark ? AppColors.darkTextSecondary : AppColors.textSecondary;
+    final textColor =
+        isDark ? AppColors.darkTextPrimary : AppColors.textPrimary;
+    final subtextColor =
+        isDark ? AppColors.darkTextSecondary : AppColors.textSecondary;
 
     return AlertDialog(
       backgroundColor: isDark ? AppColors.darkSurface : AppColors.surface,
@@ -96,9 +98,12 @@ class _LocationPickerDialogState extends State<_LocationPickerDialog> {
                 decoration: InputDecoration(
                   hintText: 'Busca una ciudad o región',
                   hintStyle: GoogleFonts.inter(color: subtextColor),
-                  prefixIcon: const Icon(Icons.search, color: AppColors.secondary),
+                  prefixIcon:
+                      const Icon(Icons.search, color: AppColors.secondary),
                   filled: true,
-                  fillColor: isDark ? AppColors.darkBackground : const Color(0xFFE2E8F0),
+                  fillColor: isDark
+                      ? AppColors.darkBackground
+                      : const Color(0xFFE2E8F0),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                     borderSide: BorderSide.none,
@@ -114,7 +119,8 @@ class _LocationPickerDialogState extends State<_LocationPickerDialog> {
                   icon: const Icon(Icons.search, size: 18),
                   label: Text(
                     'Buscar localidades',
-                    style: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.w600),
+                    style: GoogleFonts.poppins(
+                        fontSize: 14, fontWeight: FontWeight.w600),
                   ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
@@ -141,24 +147,27 @@ class _LocationPickerDialogState extends State<_LocationPickerDialog> {
                     ),
                     itemBuilder: (context, index) {
                       final option = _options[index];
-                      return ListTile(
-                        dense: true,
-                        title: Text(
-                          option.displayName,
-                          style: GoogleFonts.inter(
-                            fontWeight: FontWeight.w600,
-                            fontSize: 14,
-                            color: textColor,
+                      return Material(
+                        color: Colors.transparent,
+                        child: ListTile(
+                          dense: true,
+                          title: Text(
+                            option.displayName,
+                            style: GoogleFonts.inter(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 14,
+                              color: textColor,
+                            ),
                           ),
-                        ),
-                        subtitle: Text(
-                          option.query,
-                          style: GoogleFonts.inter(
-                            fontSize: 12,
-                            color: subtextColor,
+                          subtitle: Text(
+                            option.query,
+                            style: GoogleFonts.inter(
+                              fontSize: 12,
+                              color: subtextColor,
+                            ),
                           ),
+                          onTap: () => Navigator.of(context).pop(option.query),
                         ),
-                        onTap: () => Navigator.of(context).pop(option.query),
                       );
                     },
                   ),

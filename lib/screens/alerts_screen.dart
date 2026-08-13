@@ -59,8 +59,10 @@ class _AlertsScreenState extends State<AlertsScreen> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textColor = isDark ? AppColors.darkTextPrimary : AppColors.textPrimary;
-    final subtextColor = isDark ? AppColors.darkTextSecondary : AppColors.textSecondary;
+    final textColor =
+        isDark ? AppColors.darkTextPrimary : AppColors.textPrimary;
+    final subtextColor =
+        isDark ? AppColors.darkTextSecondary : AppColors.textSecondary;
     final bgColor = isDark ? AppColors.darkBackground : AppColors.background;
 
     final visibles =
@@ -91,7 +93,8 @@ class _AlertsScreenState extends State<AlertsScreen> {
         ],
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+          ? const Center(
+              child: CircularProgressIndicator(color: AppColors.primary))
           : Center(
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 800),
@@ -114,14 +117,19 @@ class _AlertsScreenState extends State<AlertsScreen> {
                             ),
                             selected: _soloActivas,
                             onSelected: (v) => setState(() => _soloActivas = v),
-                            selectedColor: AppColors.accentOrange.withValues(alpha: isDark ? 0.25 : 0.15),
-                            backgroundColor: isDark ? AppColors.darkSurface : AppColors.surface,
+                            selectedColor: AppColors.accentOrange
+                                .withValues(alpha: isDark ? 0.25 : 0.15),
+                            backgroundColor: isDark
+                                ? AppColors.darkSurface
+                                : AppColors.surface,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(20),
                               side: BorderSide(
                                 color: _soloActivas
                                     ? AppColors.accentOrange
-                                    : (isDark ? AppColors.darkBorder : AppColors.border),
+                                    : (isDark
+                                        ? AppColors.darkBorder
+                                        : AppColors.border),
                               ),
                             ),
                             showCheckmark: false,
@@ -143,7 +151,8 @@ class _AlertsScreenState extends State<AlertsScreen> {
                           : RefreshIndicator(
                               onRefresh: _load,
                               child: ListView.builder(
-                                padding: const EdgeInsets.symmetric(horizontal: 16),
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 16),
                                 itemCount: visibles.length,
                                 itemBuilder: (context, i) =>
                                     AlertTile(alert: visibles[i]),

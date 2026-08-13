@@ -58,8 +58,10 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textColor = isDark ? AppColors.darkTextPrimary : AppColors.textPrimary;
-    final subtextColor = isDark ? AppColors.darkTextSecondary : AppColors.textSecondary;
+    final textColor =
+        isDark ? AppColors.darkTextPrimary : AppColors.textPrimary;
+    final subtextColor =
+        isDark ? AppColors.darkTextSecondary : AppColors.textSecondary;
     final bgColor = isDark ? AppColors.darkBackground : AppColors.background;
 
     return Scaffold(
@@ -80,7 +82,8 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
             Center(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 450),
                   child: Container(
@@ -99,14 +102,16 @@ class _LoginScreenState extends State<LoginScreen> {
                             if (_loading)
                               const Padding(
                                 padding: EdgeInsets.only(bottom: 16),
-                                child: LinearProgressIndicator(color: AppColors.primary),
+                                child: LinearProgressIndicator(
+                                    color: AppColors.primary),
                               ),
                             Center(
                               child: Container(
                                 width: 76,
                                 height: 76,
                                 decoration: BoxDecoration(
-                                  color: AppColors.mintAccent.withValues(alpha: isDark ? 0.2 : 0.3),
+                                  color: AppColors.mintAccent
+                                      .withValues(alpha: isDark ? 0.2 : 0.3),
                                   shape: BoxShape.circle,
                                 ),
                                 child: const Icon(
@@ -118,7 +123,9 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                             const SizedBox(height: 20),
                             Text(
-                              _isRegisterMode ? 'Crear cuenta' : 'Bienvenido de nuevo',
+                              _isRegisterMode
+                                  ? 'Crear cuenta'
+                                  : 'Bienvenido de nuevo',
                               textAlign: TextAlign.center,
                               style: GoogleFonts.poppins(
                                 fontSize: 22,
@@ -141,23 +148,28 @@ class _LoginScreenState extends State<LoginScreen> {
                             TextFormField(
                               controller: _emailCtrl,
                               keyboardType: TextInputType.emailAddress,
-                              style: GoogleFonts.inter(fontSize: 14, color: textColor),
+                              style: GoogleFonts.inter(
+                                  fontSize: 14, color: textColor),
                               decoration: InputDecoration(
                                 labelText: 'Correo electrónico',
-                                labelStyle: GoogleFonts.inter(fontSize: 14, color: subtextColor),
+                                labelStyle: GoogleFonts.inter(
+                                    fontSize: 14, color: subtextColor),
                                 prefixIcon: const Icon(
                                   Icons.email_outlined,
                                   color: AppColors.secondary,
                                 ),
                                 filled: true,
-                                fillColor: isDark ? AppColors.darkSurface : const Color(0xFFE2E8F0),
+                                fillColor: isDark
+                                    ? AppColors.darkSurface
+                                    : const Color(0xFFE2E8F0),
                                 border: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(14),
                                   borderSide: BorderSide.none,
                                 ),
                               ),
                               validator: (v) {
-                                if (v == null || v.isEmpty) return 'Ingresa tu email';
+                                if (v == null || v.isEmpty)
+                                  return 'Ingresa tu email';
                                 if (!v.contains('@')) return 'Email inválido';
                                 return null;
                               },
@@ -166,10 +178,12 @@ class _LoginScreenState extends State<LoginScreen> {
                             TextFormField(
                               controller: _passCtrl,
                               obscureText: _obscure,
-                              style: GoogleFonts.inter(fontSize: 14, color: textColor),
+                              style: GoogleFonts.inter(
+                                  fontSize: 14, color: textColor),
                               decoration: InputDecoration(
                                 labelText: 'Contraseña',
-                                labelStyle: GoogleFonts.inter(fontSize: 14, color: subtextColor),
+                                labelStyle: GoogleFonts.inter(
+                                    fontSize: 14, color: subtextColor),
                                 prefixIcon: const Icon(
                                   Icons.lock_outline,
                                   color: AppColors.secondary,
@@ -181,17 +195,21 @@ class _LoginScreenState extends State<LoginScreen> {
                                         : Icons.visibility_outlined,
                                     color: subtextColor,
                                   ),
-                                  onPressed: () => setState(() => _obscure = !_obscure),
+                                  onPressed: () =>
+                                      setState(() => _obscure = !_obscure),
                                 ),
                                 filled: true,
-                                fillColor: isDark ? AppColors.darkSurface : const Color(0xFFE2E8F0),
+                                fillColor: isDark
+                                    ? AppColors.darkSurface
+                                    : const Color(0xFFE2E8F0),
                                 border: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(14),
                                   borderSide: BorderSide.none,
                                 ),
                               ),
                               validator: (v) {
-                                if (v == null || v.isEmpty) return 'Ingresa tu contraseña';
+                                if (v == null || v.isEmpty)
+                                  return 'Ingresa tu contraseña';
                                 if (v.length < 6) return 'Mínimo 6 caracteres';
                                 return null;
                               },
@@ -213,11 +231,15 @@ class _LoginScreenState extends State<LoginScreen> {
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: AppColors.primary,
                                 foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(vertical: 16),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 16),
+                                shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(14)),
                               ),
                               child: Text(
-                                _isRegisterMode ? 'Registrarse' : 'Iniciar sesión',
+                                _isRegisterMode
+                                    ? 'Registrarse'
+                                    : 'Iniciar sesión',
                                 style: GoogleFonts.poppins(
                                   fontSize: 15,
                                   fontWeight: FontWeight.w600,
@@ -225,11 +247,57 @@ class _LoginScreenState extends State<LoginScreen> {
                               ),
                             ),
                             const SizedBox(height: 12),
+                            OutlinedButton.icon(
+                              onPressed: _loading
+                                  ? null
+                                  : () async {
+                                      setState(() {
+                                        _loading = true;
+                                        _errorMsg = null;
+                                      });
+                                      try {
+                                        await FirebaseService.instance
+                                            .signInWithGoogle();
+                                        if (!mounted) return;
+                                        Navigator.of(context).pushReplacement(
+                                          MaterialPageRoute(
+                                              builder: (_) =>
+                                                  const DashboardScreen()),
+                                        );
+                                      } catch (e) {
+                                        setState(() => _errorMsg = e
+                                            .toString()
+                                            .replaceFirst('Exception: ', ''));
+                                      } finally {
+                                        if (mounted)
+                                          setState(() => _loading = false);
+                                      }
+                                    },
+                              icon: const Icon(Icons.login,
+                                  color: AppColors.secondary),
+                              label: Text(
+                                'Iniciar sesión con Google',
+                                style: GoogleFonts.inter(
+                                  fontSize: 14,
+                                  color: textColor,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              style: OutlinedButton.styleFrom(
+                                side: const BorderSide(
+                                    color: AppColors.secondary),
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 14),
+                                shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(14)),
+                              ),
+                            ),
+                            const SizedBox(height: 12),
                             TextButton(
                               onPressed: _loading
                                   ? null
-                                  : () =>
-                                      setState(() => _isRegisterMode = !_isRegisterMode),
+                                  : () => setState(
+                                      () => _isRegisterMode = !_isRegisterMode),
                               child: Text(
                                 _isRegisterMode
                                     ? '¿Ya tienes cuenta? Inicia sesión'
