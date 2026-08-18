@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../services/app_status.dart';
 import '../services/firebase_service.dart';
 import '../utils/colors.dart';
 import '../utils/neumorphism.dart';
@@ -53,6 +54,12 @@ class _LoginScreenState extends State<LoginScreen> {
     } finally {
       if (mounted) setState(() => _loading = false);
     }
+  }
+
+  void _continueWithoutAccount() {
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(builder: (_) => const DashboardScreen()),
+    );
   }
 
   @override
@@ -144,6 +151,40 @@ class _LoginScreenState extends State<LoginScreen> {
                                 color: subtextColor,
                               ),
                             ),
+                            if (!firebaseReady) ...[
+                              const SizedBox(height: 18),
+                              Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: AppColors.accentOrange
+                                      .withValues(alpha: isDark ? 0.18 : 0.12),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: AppColors.accentOrange
+                                        .withValues(alpha: 0.4),
+                                  ),
+                                ),
+                                child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Icon(Icons.info_outline,
+                                        color: AppColors.accentOrange, size: 18),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Text(
+                                        'Firebase aún no está conectado en este proyecto. '
+                                        'Usa "Continuar sin cuenta" para probar la app '
+                                        'mientras tanto.',
+                                        style: GoogleFonts.inter(
+                                          fontSize: 12,
+                                          color: textColor,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
                             const SizedBox(height: 32),
                             TextFormField(
                               controller: _emailCtrl,
@@ -306,6 +347,23 @@ class _LoginScreenState extends State<LoginScreen> {
                                   fontSize: 14,
                                   color: AppColors.secondary,
                                   fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                            // TODO(firebase): quita este acceso directo cuando
+                            // Firebase Auth ya esté conectado de verdad — por
+                            // ahora deja probar el resto de la app sin login.
+                            const SizedBox(height: 4),
+                            TextButton(
+                              onPressed: _loading ? null : _continueWithoutAccount,
+                              child: Text(
+                                'Continuar sin cuenta (modo desarrollo)',
+                                textAlign: TextAlign.center,
+                                style: GoogleFonts.inter(
+                                  fontSize: 12,
+                                  color: subtextColor,
+                                  fontWeight: FontWeight.w500,
+                                  decoration: TextDecoration.underline,
                                 ),
                               ),
                             ),

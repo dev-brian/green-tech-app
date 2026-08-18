@@ -23,6 +23,9 @@ dependencies:
   # Guardar ruta/ajustes simples en el dispositivo
   shared_preferences: ^2.2.0
 
+  # Notificaciones locales para alertas (funciona sin Firebase/FCM)
+  flutter_local_notifications: ^17.2.4
+
   # Acceso a rutas de archivos (para persistir la imagen localmente)
   path_provider: ^2.0.15
 

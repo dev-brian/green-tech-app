@@ -2,12 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import '../models/sensor_model.dart';
-import '../services/api_service.dart';
+import '../services/sensor_data_controller.dart';
 import '../utils/colors.dart';
 import '../utils/neumorphism.dart';
 import '../widgets/chart_widget.dart';
 import '../widgets/location_picker_dialog.dart';
 import '../widgets/sensor_card.dart';
+import '../widgets/sensor_simulator_panel.dart';
 import 'alerts_screen.dart';
 import 'history_screen.dart';
 import 'profile_screen.dart';
@@ -21,29 +22,44 @@ class DashboardScreen extends StatefulWidget {
 }
 
 class _DashboardScreenState extends State<DashboardScreen> {
-  final ApiService _api = ApiService();
+  final SensorDataController _controller = SensorDataController.instance;
 
-  SensorReading? _reading;
   List<ChartPoint> _chartPoints = [];
-  bool _loading = true;
+  bool _chartLoading = false;
   int _navIndex = 0;
 
   @override
   void initState() {
     super.initState();
-    _loadData();
+    _loadAll();
   }
 
-  Future<void> _loadData() async {
-    setState(() => _loading = true);
-    final reading = await _api.getCurrentReading();
-    final chart = await _api.getHistorico(metric: 'temperatura', rango: 'hoy');
-    if (!mounted) return;
-    setState(() {
-      _reading = reading;
-      _chartPoints = chart;
-      _loading = false;
-    });
+  Future<void> _loadAll() async {
+    await _controller.loadRealWeather();
+    if (_controller.error.value == null) {
+      await _loadChart();
+    }
+  }
+
+  Future<void> _loadChart() async {
+    setState(() => _chartLoading = true);
+    try {
+      final chart = await _controller.api
+          .getHistorico(metric: 'temperatura', rango: 'hoy');
+      if (!mounted) return;
+      setState(() {
+        _chartPoints = chart;
+        _chartLoading = false;
+      });
+    } catch (_) {
+      // Si falla la mini-gráfica no bloqueamos el resto del Dashboard;
+      // simplemente se queda vacía con su propio mensaje de "sin datos".
+      if (!mounted) return;
+      setState(() {
+        _chartPoints = [];
+        _chartLoading = false;
+      });
+    }
   }
 
   void _onNavTap(int index) {
@@ -60,20 +76,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
     Navigator.of(context)
         .push(MaterialPageRoute(builder: (_) => screens[index]!))
         .then((_) {
-      setState(() => _navIndex = 0);
+      if (mounted) setState(() => _navIndex = 0);
     });
   }
 
   Future<void> _changeLocation() async {
     final result = await showLocationPicker(
       context: context,
-      api: _api,
-      initialLocation: _api.currentLocation,
+      api: _controller.api,
+      initialLocation: _controller.currentLocation,
     );
 
     if (result != null && result.trim().isNotEmpty) {
-      _api.setLocation(result.trim());
-      await _loadData();
+      await _loadAll();
     }
   }
 
@@ -108,123 +123,171 @@ class _DashboardScreenState extends State<DashboardScreen> {
             tooltip: 'Cambiar ubicación',
             onPressed: _changeLocation,
           ),
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _loading ? null : _loadData,
+          ValueListenableBuilder<bool>(
+            valueListenable: _controller.loading,
+            builder: (context, loading, _) => IconButton(
+              icon: const Icon(Icons.refresh),
+              onPressed: loading ? null : _loadAll,
+            ),
           ),
         ],
       ),
-      body: _loading || _reading == null
-          ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
-          : RefreshIndicator(
-              onRefresh: _loadData,
-              child: Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 1000),
-                  child: LayoutBuilder(builder: (context, constraints) {
-                    final wide = constraints.maxWidth > 650;
-                    final maxCrossExtent = wide ? 240.0 : 180.0;
+      body: ValueListenableBuilder<bool>(
+        valueListenable: _controller.loading,
+        builder: (context, loading, _) {
+          return ValueListenableBuilder<String?>(
+            valueListenable: _controller.error,
+            builder: (context, errorMsg, __) {
+              return ValueListenableBuilder<SensorReading?>(
+                valueListenable: _controller.currentReading,
+                builder: (context, reading, ___) {
+                  if (loading && reading == null) {
+                    return const Center(
+                      child: CircularProgressIndicator(color: AppColors.primary),
+                    );
+                  }
 
-                    return ListView(
-                      padding: const EdgeInsets.all(18),
-                      children: [
-                        _buildHeaderSection(_reading!, isDark),
-                        const SizedBox(height: 24),
-                        Text(
-                          'Sensores en tiempo real',
-                          style: GoogleFonts.poppins(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w700,
-                            color: textColor,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        GridView(
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
-                            maxCrossAxisExtent: maxCrossExtent,
-                            mainAxisSpacing: 14,
-                            crossAxisSpacing: 14,
-                            mainAxisExtent: 145,
-                          ),
-                          children: [
-                            SensorCard(
-                              label: 'Temperatura',
-                              value: _reading!.temperatura.toStringAsFixed(1),
-                              unit: '°C',
-                              icon: Icons.thermostat,
-                              estado: _reading!.estadoTemperatura,
-                              onTap: _goToDetail,
-                            ),
-                            SensorCard(
-                              label: 'Humedad ambiental',
-                              value: _reading!.humedadAire.toStringAsFixed(0),
-                              unit: '%',
-                              icon: Icons.water_drop_outlined,
-                              estado: _reading!.estadoHumedadAire,
-                              onTap: _goToDetail,
-                            ),
-                            SensorCard(
-                              label: 'Humedad del suelo',
-                              value: _reading!.humedadSuelo.toStringAsFixed(0),
-                              unit: '%',
-                              icon: Icons.grass,
-                              estado: _reading!.estadoHumedadSuelo,
-                              onTap: _goToDetail,
-                            ),
-                            _buildSensorInfoCard(_reading!, isDark),
-                          ],
-                        ),
-                        const SizedBox(height: 28),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              'Últimas 24 horas',
-                              style: GoogleFonts.poppins(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w700,
-                                color: textColor,
-                              ),
-                            ),
-                            TextButton(
-                              onPressed: () => Navigator.of(context).push(
-                                MaterialPageRoute(
-                                    builder: (_) => const HistoryScreen()),
-                              ),
-                              child: Text(
-                                'Ver histórico',
-                                style: GoogleFonts.inter(
-                                  fontWeight: FontWeight.w600,
-                                  color: AppColors.secondary,
+                  if (errorMsg != null && reading == null) {
+                    return _buildErrorState(errorMsg, isDark);
+                  }
+
+                  if (reading == null) {
+                    return const Center(
+                      child: CircularProgressIndicator(color: AppColors.primary),
+                    );
+                  }
+
+                  return RefreshIndicator(
+                    onRefresh: _loadAll,
+                    child: Center(
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 1000),
+                        child: LayoutBuilder(builder: (context, constraints) {
+                          final wide = constraints.maxWidth > 650;
+                          final maxCrossExtent = wide ? 240.0 : 180.0;
+
+                          return ListView(
+                            padding: const EdgeInsets.all(18),
+                            children: [
+                              if (errorMsg != null) ...[
+                                _buildInlineErrorBanner(errorMsg, isDark),
+                                const SizedBox(height: 14),
+                              ],
+                              _buildHeaderSection(reading, isDark),
+                              const SizedBox(height: 24),
+                              Text(
+                                'Sensores en tiempo real',
+                                style: GoogleFonts.poppins(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w700,
+                                  color: textColor,
                                 ),
                               ),
-                            ),
-                          ],
-                        ),
-                        Container(
-                          decoration: NeumorphismDecoration.extruded(
-                            context: context,
-                            isDark: isDark,
-                            borderRadius: 18,
-                          ),
-                          child: Padding(
-                            padding: const EdgeInsets.fromLTRB(14, 18, 18, 14),
-                            child: ChartWidget(
-                              points: _chartPoints,
-                              color: AppColors.primary,
-                              height: wide ? 260 : 200,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 20),
-                      ],
-                    );
-                  }),
-                ),
-              ),
-            ),
+                              const SizedBox(height: 12),
+                              GridView(
+                                shrinkWrap: true,
+                                physics: const NeverScrollableScrollPhysics(),
+                                gridDelegate:
+                                    SliverGridDelegateWithMaxCrossAxisExtent(
+                                  maxCrossAxisExtent: maxCrossExtent,
+                                  mainAxisSpacing: 14,
+                                  crossAxisSpacing: 14,
+                                  mainAxisExtent: 145,
+                                ),
+                                children: [
+                                  SensorCard(
+                                    label: 'Temperatura',
+                                    value: reading.temperatura.toStringAsFixed(1),
+                                    unit: '°C',
+                                    icon: Icons.thermostat,
+                                    estado: reading.estadoTemperatura,
+                                    onTap: _goToDetail,
+                                  ),
+                                  SensorCard(
+                                    label: 'Humedad ambiental',
+                                    value: reading.humedadAire.toStringAsFixed(0),
+                                    unit: '%',
+                                    icon: Icons.water_drop_outlined,
+                                    estado: reading.estadoHumedadAire,
+                                    onTap: _goToDetail,
+                                  ),
+                                  SensorCard(
+                                    label: 'Humedad del suelo',
+                                    value: reading.humedadSuelo.toStringAsFixed(0),
+                                    unit: '%',
+                                    icon: Icons.grass,
+                                    estado: reading.estadoHumedadSuelo,
+                                    onTap: _goToDetail,
+                                  ),
+                                  _buildSensorInfoCard(reading, isDark),
+                                ],
+                              ),
+                              const SizedBox(height: 20),
+                              SensorSimulatorPanel(reading: reading, isDark: isDark),
+                              const SizedBox(height: 28),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    'Pronóstico próximas horas',
+                                    style: GoogleFonts.poppins(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.w700,
+                                      color: textColor,
+                                    ),
+                                  ),
+                                  TextButton(
+                                    onPressed: () => Navigator.of(context).push(
+                                      MaterialPageRoute(
+                                          builder: (_) => const HistoryScreen()),
+                                    ),
+                                    child: Text(
+                                      'Ver histórico',
+                                      style: GoogleFonts.inter(
+                                        fontWeight: FontWeight.w600,
+                                        color: AppColors.secondary,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              Container(
+                                decoration: NeumorphismDecoration.extruded(
+                                  context: context,
+                                  isDark: isDark,
+                                  borderRadius: 18,
+                                ),
+                                child: Padding(
+                                  padding:
+                                      const EdgeInsets.fromLTRB(14, 18, 18, 14),
+                                  child: _chartLoading
+                                      ? SizedBox(
+                                          height: wide ? 260 : 200,
+                                          child: const Center(
+                                            child: CircularProgressIndicator(
+                                                color: AppColors.primary),
+                                          ),
+                                        )
+                                      : ChartWidget(
+                                          points: _chartPoints,
+                                          color: AppColors.primary,
+                                          height: wide ? 260 : 200,
+                                        ),
+                                ),
+                              ),
+                              const SizedBox(height: 20),
+                            ],
+                          );
+                        }),
+                      ),
+                    ),
+                  );
+                },
+              );
+            },
+          );
+        },
+      ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _navIndex,
         onDestinationSelected: _onNavTap,
@@ -240,6 +303,76 @@ class _DashboardScreenState extends State<DashboardScreen> {
               icon: Icon(Icons.notifications_outlined), label: 'Alertas'),
           NavigationDestination(
               icon: Icon(Icons.person_outline), label: 'Perfil'),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildErrorState(String message, bool isDark) {
+    final textColor = isDark ? AppColors.darkTextPrimary : AppColors.textPrimary;
+    final subtextColor = isDark ? AppColors.darkTextSecondary : AppColors.textSecondary;
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.cloud_off, color: AppColors.critico, size: 42),
+            const SizedBox(height: 12),
+            Text(
+              'No se pudo cargar el clima',
+              style: GoogleFonts.poppins(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: textColor,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 6),
+            Text(
+              message,
+              style: GoogleFonts.inter(fontSize: 13, color: subtextColor),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 18),
+            ElevatedButton.icon(
+              onPressed: _loadAll,
+              icon: const Icon(Icons.refresh),
+              label: const Text('Reintentar'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+              ),
+            ),
+            const SizedBox(height: 8),
+            TextButton(
+              onPressed: _changeLocation,
+              child: const Text('Cambiar ubicación'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInlineErrorBanner(String message, bool isDark) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.critico.withValues(alpha: isDark ? 0.18 : 0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.critico.withValues(alpha: 0.4)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.error_outline, color: AppColors.critico, size: 18),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'No se pudo actualizar el clima: $message',
+              style: GoogleFonts.inter(fontSize: 12, color: AppColors.critico),
+            ),
+          ),
         ],
       ),
     );
@@ -314,6 +447,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     DateFormat('dd/MM · HH:mm').format(reading.timestamp),
                     subtextColor,
                     isDark),
+                if (_controller.isSimulating)
+                  _buildStatusChip(
+                      'Modo', 'Simulado', AppColors.accentOrange, isDark),
               ],
             )
           ],
