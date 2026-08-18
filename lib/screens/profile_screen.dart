@@ -1,12 +1,15 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../services/firebase_service.dart';
+import '../services/sensor_data_controller.dart';
 import '../utils/colors.dart';
+import '../utils/neumorphism.dart';
 import 'login_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -17,9 +20,7 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  bool _notifTemp = true;
-  bool _notifHumedad = true;
-  bool _notifSuelo = true;
+  final SensorDataController _controller = SensorDataController.instance;
 
   String? _imagePath;
 
@@ -79,103 +80,203 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final email =
         FirebaseService.instance.currentUserEmail ?? 'usuario@greentech.com';
 
+    final textColor = isDark ? AppColors.darkTextPrimary : AppColors.textPrimary;
+    final subtextColor = isDark ? AppColors.darkTextSecondary : AppColors.textSecondary;
+    final bgColor = isDark ? AppColors.darkBackground : AppColors.background;
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Perfil')),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          Center(
-            child: Column(
-              children: [
-                Stack(
-                  alignment: Alignment.bottomRight,
-                  children: [
-                    CircleAvatar(
-                      radius: 48,
-                      backgroundColor: AppColors.primary,
-                      backgroundImage: _imagePath != null
-                          ? FileImage(File(_imagePath!))
-                          : null,
-                      child: _imagePath == null
-                          ? const Icon(Icons.person,
-                              color: Colors.white, size: 42)
-                          : null,
-                    ),
-                    Positioned(
-                      right: 0,
-                      bottom: 0,
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          IconButton(
-                            icon: const Icon(Icons.edit, size: 20),
-                            color: AppColors.primaryDark,
-                            onPressed: _pickImage,
-                          ),
-                          if (_imagePath != null)
-                            IconButton(
-                              icon: const Icon(Icons.delete_outline, size: 20),
-                              color: AppColors.critico,
-                              onPressed: _removeImage,
-                            ),
-                        ],
-                      ),
-                    )
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Text(email,
-                    style: const TextStyle(
-                        fontWeight: FontWeight.bold, fontSize: 16)),
-                const Text('Productor agrícola',
-                    style: TextStyle(color: AppColors.textSecondary)),
-              ],
+      backgroundColor: bgColor,
+      appBar: AppBar(
+        title: Text(
+          'Perfil de Usuario',
+          style: GoogleFonts.poppins(fontWeight: FontWeight.w700),
+        ),
+        backgroundColor: AppColors.secondary,
+        actions: [
+          IconButton(
+            icon: Icon(
+              isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
+              color: Colors.white,
             ),
-          ),
-          const SizedBox(height: 28),
-          Text('Notificaciones', style: Theme.of(context).textTheme.titleLarge),
-          const SizedBox(height: 8),
-          Card(
-            child: Column(
-              children: [
-                SwitchListTile(
-                  title: const Text('Alertas de temperatura'),
-                  value: _notifTemp,
-                  activeThumbColor: AppColors.primary,
-                  onChanged: (v) => setState(() => _notifTemp = v),
-                ),
-                SwitchListTile(
-                  title: const Text('Alertas de humedad ambiental'),
-                  value: _notifHumedad,
-                  activeThumbColor: AppColors.primary,
-                  onChanged: (v) => setState(() => _notifHumedad = v),
-                ),
-                SwitchListTile(
-                  title: const Text('Alertas de humedad del suelo'),
-                  value: _notifSuelo,
-                  activeThumbColor: AppColors.primary,
-                  onChanged: (v) => setState(() => _notifSuelo = v),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 28),
-          OutlinedButton.icon(
-            onPressed: _signOut,
-            icon: const Icon(Icons.logout, color: AppColors.critico),
-            label: const Text('Cerrar sesión',
-                style: TextStyle(color: AppColors.critico)),
-            style: OutlinedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 14),
-              side: const BorderSide(color: AppColors.critico),
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12)),
-            ),
+            onPressed: () => AppThemeController.toggleTheme(),
           ),
         ],
+      ),
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 700),
+          child: ListView(
+            padding: const EdgeInsets.all(20),
+            children: [
+              Container(
+                decoration: NeumorphismDecoration.extruded(
+                  context: context,
+                  isDark: isDark,
+                  borderRadius: 20,
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    children: [
+                      Stack(
+                        alignment: Alignment.bottomRight,
+                        children: [
+                          CircleAvatar(
+                            radius: 50,
+                            backgroundColor: AppColors.mintAccent.withValues(alpha: isDark ? 0.3 : 0.4),
+                            backgroundImage: _imagePath != null
+                                ? FileImage(File(_imagePath!))
+                                : null,
+                            child: _imagePath == null
+                                ? const Icon(
+                                    Icons.person,
+                                    color: AppColors.secondary,
+                                    size: 52,
+                                  )
+                                : null,
+                          ),
+                          Positioned(
+                            right: -4,
+                            bottom: -4,
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: isDark ? AppColors.darkSurface : AppColors.surface,
+                                shape: BoxShape.circle,
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  IconButton(
+                                    icon: const Icon(Icons.photo_camera, size: 18),
+                                    color: AppColors.secondary,
+                                    onPressed: _pickImage,
+                                    constraints: const BoxConstraints(),
+                                    padding: const EdgeInsets.all(8),
+                                  ),
+                                  if (_imagePath != null)
+                                    IconButton(
+                                      icon: const Icon(Icons.delete_outline, size: 18),
+                                      color: AppColors.critico,
+                                      onPressed: _removeImage,
+                                      constraints: const BoxConstraints(),
+                                      padding: const EdgeInsets.all(8),
+                                    ),
+                                ],
+                              ),
+                            ),
+                          )
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        email,
+                        style: GoogleFonts.poppins(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 18,
+                          color: textColor,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Productor agrícola · Green Tech',
+                        style: GoogleFonts.inter(
+                          color: subtextColor,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 24),
+              Text(
+                'Preferencias de la Aplicación',
+                style: GoogleFonts.poppins(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: textColor,
+                ),
+              ),
+              const SizedBox(height: 10),
+              Container(
+                decoration: NeumorphismDecoration.extruded(
+                  context: context,
+                  isDark: isDark,
+                  borderRadius: 18,
+                ),
+                child: Column(
+                  children: [
+                    SwitchListTile(
+                      title: Text(
+                        'Modo Oscuro Neumórfico',
+                        style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600, color: textColor),
+                      ),
+                      secondary: Icon(
+                        isDark ? Icons.dark_mode_rounded : Icons.light_mode_rounded,
+                        color: AppColors.primary,
+                      ),
+                      value: isDark,
+                      activeThumbColor: AppColors.primary,
+                      onChanged: (_) => AppThemeController.toggleTheme(),
+                    ),
+                    const Divider(height: 1, indent: 16, endIndent: 16),
+                    SwitchListTile(
+                      title: Text(
+                        'Alertas de temperatura',
+                        style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w500, color: textColor),
+                      ),
+                      value: _controller.notifTemp,
+                      activeThumbColor: AppColors.primary,
+                      onChanged: (v) => setState(() => _controller.setNotifPref('temp', v)),
+                    ),
+                    const Divider(height: 1, indent: 16, endIndent: 16),
+                    SwitchListTile(
+                      title: Text(
+                        'Alertas de humedad ambiental',
+                        style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w500, color: textColor),
+                      ),
+                      value: _controller.notifHumedadAire,
+                      activeThumbColor: AppColors.primary,
+                      onChanged: (v) => setState(() => _controller.setNotifPref('humedad_aire', v)),
+                    ),
+                    const Divider(height: 1, indent: 16, endIndent: 16),
+                    SwitchListTile(
+                      title: Text(
+                        'Alertas de humedad del suelo',
+                        style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w500, color: textColor),
+                      ),
+                      value: _controller.notifHumedadSuelo,
+                      activeThumbColor: AppColors.primary,
+                      onChanged: (v) => setState(() => _controller.setNotifPref('humedad_suelo', v)),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 28),
+              OutlinedButton.icon(
+                onPressed: _signOut,
+                icon: const Icon(Icons.logout, color: AppColors.critico),
+                label: Text(
+                  'Cerrar sesión',
+                  style: GoogleFonts.inter(
+                    color: AppColors.critico,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  side: const BorderSide(color: AppColors.critico),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

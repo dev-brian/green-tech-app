@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../models/sensor_model.dart';
 
 class LocationOption {
@@ -10,7 +11,7 @@ class LocationOption {
 }
 
 class ApiService {
-  static const String _apiKey = '8ee9f2f40f707f4706714371966ad607';
+  static String get _apiKey => dotenv.env['WEATHER_API_KEY'] ?? '';
   static const String _baseUrl = 'https://api.openweathermap.org/data/2.5';
   static String _selectedLocation = 'Tlaxcala';
 

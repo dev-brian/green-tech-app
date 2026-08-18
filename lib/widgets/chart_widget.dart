@@ -1,11 +1,11 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import '../models/sensor_model.dart';
 import '../utils/colors.dart';
 
-/// Gráfica de línea simple y limpia, pensada para leerse rápido.
-/// Se usa tanto en el mini-gráfico del Dashboard como en el Histórico.
+/// Gráfica de línea limpia y responsiva basada en Neumorfismo y Guía de Estilos Green Tech.
 class ChartWidget extends StatelessWidget {
   final List<ChartPoint> points;
   final Color color;
@@ -22,14 +22,22 @@ class ChartWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final labelColor = isDark ? AppColors.darkTextSecondary : AppColors.textSecondary;
+    final gridLineColor = isDark ? AppColors.darkBorder.withValues(alpha: 0.5) : AppColors.border;
+
     if (points.isEmpty) {
       return SizedBox(
         height: height,
-        child: const Center(child: Text('Sin datos disponibles')),
+        child: Center(
+          child: Text(
+            'Sin datos disponibles',
+            style: GoogleFonts.inter(fontSize: 14, color: labelColor),
+          ),
+        ),
       );
     }
 
-    // Convertir tiempos a double (ms) para el eje X
     final spots = points
         .map((p) => FlSpot(p.time.millisecondsSinceEpoch.toDouble(), p.value))
         .toList();
@@ -43,7 +51,7 @@ class ChartWidget extends StatelessWidget {
 
     String formatTime(double ms) {
       final dt = DateTime.fromMillisecondsSinceEpoch(ms.toInt());
-      return DateFormat.Hm().format(dt); // HH:mm
+      return DateFormat.Hm().format(dt);
     }
 
     return SizedBox(
@@ -57,38 +65,46 @@ class ChartWidget extends StatelessWidget {
           gridData: FlGridData(
             show: showLabels,
             drawVerticalLine: false,
-            horizontalInterval: (maxY - minY) / 4,
+            horizontalInterval: (maxY - minY) / 4 > 0 ? (maxY - minY) / 4 : 1,
             getDrawingHorizontalLine: (_) => FlLine(
-                color: Colors.grey.withValues(alpha: 0.15), strokeWidth: 1),
+              color: gridLineColor,
+              strokeWidth: 1,
+            ),
           ),
           titlesData: FlTitlesData(
             show: showLabels,
-            topTitles:
-                const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-            rightTitles:
-                const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
             leftTitles: AxisTitles(
               sideTitles: SideTitles(
                 showTitles: true,
                 reservedSize: 34,
-                interval: (maxY - minY) / 4,
+                interval: (maxY - minY) / 4 > 0 ? (maxY - minY) / 4 : 1,
                 getTitlesWidget: (v, meta) => Text(
                   v.toStringAsFixed(0),
-                  style: const TextStyle(
-                      fontSize: 10, color: AppColors.textSecondary),
+                  style: GoogleFonts.inter(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w400,
+                    color: labelColor,
+                  ),
                 ),
               ),
             ),
             bottomTitles: AxisTitles(
               sideTitles: SideTitles(
                 showTitles: showLabels,
-                interval: (maxX - minX) / (spots.length > 4 ? 4 : spots.length),
+                interval: (maxX - minX) / (spots.length > 4 ? 4 : spots.length) > 0
+                    ? (maxX - minX) / (spots.length > 4 ? 4 : spots.length)
+                    : 1,
                 getTitlesWidget: (v, meta) => Padding(
                   padding: const EdgeInsets.only(top: 6),
                   child: Text(
                     formatTime(v),
-                    style: const TextStyle(
-                        fontSize: 10, color: AppColors.textSecondary),
+                    style: GoogleFonts.inter(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w400,
+                      color: labelColor,
+                    ),
                   ),
                 ),
               ),
@@ -107,8 +123,8 @@ class ChartWidget extends StatelessWidget {
                 show: true,
                 gradient: LinearGradient(
                   colors: [
-                    color.withValues(alpha: 0.25),
-                    color.withValues(alpha: 0.0)
+                    color.withValues(alpha: isDark ? 0.35 : 0.25),
+                    color.withValues(alpha: 0.0),
                   ],
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
@@ -119,13 +135,16 @@ class ChartWidget extends StatelessWidget {
           lineTouchData: LineTouchData(
             handleBuiltInTouches: true,
             touchTooltipData: LineTouchTooltipData(
-              getTooltipColor: (_) => AppColors.primaryDark,
+              getTooltipColor: (_) => isDark ? const Color(0xFF334155) : AppColors.textPrimary,
               getTooltipItems: (touchedSpots) => touchedSpots.map((t) {
                 final timeLabel = formatTime(t.x);
                 return LineTooltipItem(
                   '${t.y.toStringAsFixed(1)}\n$timeLabel',
-                  const TextStyle(
-                      color: Colors.white, fontWeight: FontWeight.bold),
+                  GoogleFonts.inter(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 12,
+                  ),
                 );
               }).toList(),
             ),

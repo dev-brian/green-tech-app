@@ -11,6 +11,8 @@ dependencies:
     sdk: flutter
   cupertino_icons: ^1.0.6
   http: ^1.2.0
+  google_fonts: ^6.2.1
+  flutter_dotenv: ^5.1.0
 
   # Gráficas para dashboard e histórico
   fl_chart: ^0.68.0
@@ -21,12 +23,16 @@ dependencies:
   # Guardar ruta/ajustes simples en el dispositivo
   shared_preferences: ^2.2.0
 
+  # Notificaciones locales para alertas (funciona sin Firebase/FCM)
+  flutter_local_notifications: ^17.2.4
+
   # Acceso a rutas de archivos (para persistir la imagen localmente)
   path_provider: ^2.0.15
 
   # Firebase (descomenta cuando conectes tu proyecto real)
-  # firebase_core: ^2.31.0
-  # firebase_auth: ^4.19.6
+  firebase_core: ^2.31.0
+  firebase_auth: ^4.19.6
+  google_sign_in: ^6.1.0
   # cloud_firestore: ^4.17.4
 
   # HTTP para consumir tu API / MQTT bridge de los ESP32
@@ -41,5 +47,7 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  assets:
+    - .env
   # assets:
   #   - assets/images/logo.png
