@@ -22,10 +22,23 @@ Dashboard → Detalle de sensores → Histórico → Alertas → Perfil.
 No necesitas Firebase todavía: `FirebaseService` y `ApiService` usan datos simulados
 (incluyendo el JSON de prueba que definiste) para que puedas navegar toda la app desde ya.
 
+## 🔐 Configurar Firebase Auth (HU-M01)
+
+La autenticación ya usa Firebase Auth real. Antes del primer `flutter run`:
+
+1. En la consola de Firebase → *Authentication* → *Sign-in method*, habilita **Correo electrónico/contraseña**.
+2. Instala la CLI y genera la configuración:
+   ```bash
+   dart pub global activate flutterfire_cli
+   flutterfire configure
+   ```
+   Esto crea `lib/firebase_options.dart` y los archivos nativos (`google-services.json`, `GoogleService-Info.plist`).
+3. `flutter pub get && flutter run`
+
+La sesión se mantiene al cerrar la app (Task 1.3) y el login recuerda el último email usado.
+
 ## 🔌 Conectar datos reales
 
-- **Firebase Auth**: corre `flutterfire configure`, descomenta las dependencias en
-  `pubspec.yaml` y los `TODO` en `lib/services/firebase_service.dart`.
 - **API / IoT (ESP32)**: en `lib/services/api_service.dart` cambia
   `useMockData = false` y define `baseUrl` con tu backend real. Ya está listo el
   paquete `http` para que solo reemplaces los métodos marcados con `TODO`.

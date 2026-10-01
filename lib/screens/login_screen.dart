@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import '../services/firebase_service.dart';
+import '../services/session_storage.dart';
 import '../utils/colors.dart';
+import '../utils/validators.dart';
 import 'dashboard_screen.dart';
+import 'forgot_password_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -21,6 +24,19 @@ class _LoginScreenState extends State<LoginScreen> {
   String? _errorMsg;
 
   @override
+  void initState() {
+    super.initState();
+    _prefillLastEmail();
+  }
+
+  /// Prellena el email con el último usado en este dispositivo.
+  Future<void> _prefillLastEmail() async {
+    final last = await SessionStorage.getLastEmail();
+    if (!mounted || last == null || _emailCtrl.text.isNotEmpty) return;
+    _emailCtrl.text = last;
+  }
+
+  @override
   void dispose() {
     _emailCtrl.dispose();
     _passCtrl.dispose();
@@ -29,6 +45,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
+    FocusScope.of(context).unfocus();
     setState(() {
       _loading = true;
       _errorMsg = null;
@@ -46,11 +63,23 @@ class _LoginScreenState extends State<LoginScreen> {
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(builder: (_) => const DashboardScreen()),
       );
-    } catch (e) {
-      setState(() => _errorMsg = e.toString().replaceFirst('Exception: ', ''));
+    } on AuthException catch (e) {
+      if (mounted) setState(() => _errorMsg = e.message);
+    } catch (_) {
+      if (mounted) {
+        setState(() =>
+            _errorMsg = 'Ocurrió un error inesperado. Inténtalo de nuevo');
+      }
     } finally {
       if (mounted) setState(() => _loading = false);
     }
+  }
+
+  void _openForgotPassword() {
+    Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) =>
+          ForgotPasswordScreen(initialEmail: _emailCtrl.text.trim()),
+    ));
   }
 
   @override
@@ -88,21 +117,26 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
                 const SizedBox(height: 32),
                 TextFormField(
+                  key: const Key('login_email'),
                   controller: _emailCtrl,
                   keyboardType: TextInputType.emailAddress,
+                  textInputAction: TextInputAction.next,
+                  autofillHints: const [AutofillHints.email],
                   decoration: const InputDecoration(
                       labelText: 'Email',
                       prefixIcon: Icon(Icons.email_outlined)),
-                  validator: (v) {
-                    if (v == null || v.isEmpty) return 'Ingresa tu email';
-                    if (!v.contains('@')) return 'Email inválido';
-                    return null;
-                  },
+                  validator: Validators.email,
                 ),
                 const SizedBox(height: 16),
                 TextFormField(
+                  key: const Key('login_password'),
                   controller: _passCtrl,
                   obscureText: _obscure,
+                  textInputAction: TextInputAction.done,
+                  autofillHints: const [AutofillHints.password],
+                  onFieldSubmitted: (_) {
+                    if (!_loading) _submit();
+                  },
                   decoration: InputDecoration(
                     labelText: 'Contraseña',
                     prefixIcon: const Icon(Icons.lock_outline),
@@ -112,12 +146,16 @@ class _LoginScreenState extends State<LoginScreen> {
                       onPressed: () => setState(() => _obscure = !_obscure),
                     ),
                   ),
-                  validator: (v) {
-                    if (v == null || v.isEmpty) return 'Ingresa tu contraseña';
-                    if (v.length < 6) return 'Mínimo 6 caracteres';
-                    return null;
-                  },
+                  validator: Validators.password,
                 ),
+                if (!_isRegisterMode)
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton(
+                      onPressed: _loading ? null : _openForgotPassword,
+                      child: const Text('¿Olvidaste tu contraseña?'),
+                    ),
+                  ),
                 if (_errorMsg != null) ...[
                   const SizedBox(height: 12),
                   Text(_errorMsg!,
@@ -134,8 +172,10 @@ class _LoginScreenState extends State<LoginScreen> {
                 TextButton(
                   onPressed: _loading
                       ? null
-                      : () =>
-                          setState(() => _isRegisterMode = !_isRegisterMode),
+                      : () => setState(() {
+                            _isRegisterMode = !_isRegisterMode;
+                            _errorMsg = null;
+                          }),
                   child: Text(
                     _isRegisterMode
                         ? '¿Ya tienes cuenta? Inicia sesión'

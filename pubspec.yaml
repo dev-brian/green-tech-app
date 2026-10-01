@@ -23,10 +23,10 @@ dependencies:
   # Acceso a rutas de archivos (para persistir la imagen localmente)
   path_provider: ^2.0.15
 
-  # Firebase (descomenta cuando conectes tu proyecto real)
-  # firebase_core: ^2.31.0
-  # firebase_auth: ^4.19.6
-  # cloud_firestore: ^4.17.4
+  # Firebase (HU-M01: autenticación)
+  firebase_core: ^3.6.0
+  firebase_auth: ^5.3.1
+  # cloud_firestore: ^5.4.4
 
   # HTTP para consumir tu API / MQTT bridge de los ESP32
   http: ^1.2.1

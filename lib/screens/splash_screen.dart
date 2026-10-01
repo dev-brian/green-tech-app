@@ -26,9 +26,13 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
   }
 
   Future<void> _navigateNext() async {
-    await Future.delayed(const Duration(milliseconds: 2200));
+    // Espera la animación y, en paralelo, que Firebase restaure la sesión.
+    final results = await Future.wait<Object?>([
+      Future.delayed(const Duration(milliseconds: 2200)),
+      FirebaseService.instance.restoreSession(),
+    ]);
     if (!mounted) return;
-    final loggedIn = FirebaseService.instance.isLoggedIn;
+    final loggedIn = results[1] != null;
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(builder: (_) => loggedIn ? const DashboardScreen() : const LoginScreen()),
     );
