@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:intl/intl.dart';
 import '../models/sensor_model.dart';
 import '../services/sensor_data_controller.dart';
 import '../utils/colors.dart';
 import '../utils/neumorphism.dart';
+import '../widgets/live_clock.dart';
 
 /// Muestra la misma lectura activa que el Dashboard (stream de Firestore)
 /// — no hace su propio fetch por separado, para que nunca se desincronice
@@ -117,11 +117,13 @@ class _SensorDetailScreenState extends State<SensorDetailScreen> {
                               isDark,
                             ),
                             const SizedBox(height: 12),
-                            _infoRow(
-                              Icons.access_time,
-                              'Última actualización',
-                              _hace(r.timestamp),
-                              isDark,
+                            LiveClock(
+                              builder: (context, now) => _infoRow(
+                                Icons.access_time,
+                                'Última actualización',
+                                formatHace(r.timestamp, now),
+                                isDark,
+                              ),
                             ),
                           ],
                         ),
@@ -166,13 +168,6 @@ class _SensorDetailScreenState extends State<SensorDetailScreen> {
         },
       ),
     );
-  }
-
-  String _hace(DateTime t) {
-    final diff = DateTime.now().difference(t);
-    if (diff.inSeconds < 60) return 'Hace ${diff.inSeconds} seg';
-    if (diff.inMinutes < 60) return 'Hace ${diff.inMinutes} min';
-    return DateFormat('dd/MM HH:mm').format(t);
   }
 
   Widget _infoRow(IconData icon, String label, String value, bool isDark) {
