@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'firebase_options.dart'; // generado por `flutterfire configure`
 import 'screens/splash_screen.dart';
 import 'services/app_status.dart';
 import 'services/notification_service.dart';
@@ -12,11 +13,11 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await dotenv.load();
 
-  // TODO(firebase): cuando conectes tu proyecto real (flutterfire configure
-  // + google-services.json / GoogleService-Info.plist), este try/catch deja
-  // de ser necesario, pero no estorba dejarlo.
+  // Si Firebase falla (p. ej. plataforma sin configurar), la app sigue en
+  // modo local y las pantallas lo consultan con `firebaseReady`.
   try {
-    await Firebase.initializeApp();
+    await Firebase.initializeApp(
+        options: DefaultFirebaseOptions.currentPlatform);
     firebaseReady = true;
   } catch (e) {
     firebaseReady = false;
