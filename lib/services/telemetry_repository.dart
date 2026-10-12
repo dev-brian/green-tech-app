@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../models/actuator_model.dart';
 import '../models/sensor_model.dart';
 
 /// Una emisión del stream de telemetría.
@@ -20,10 +21,14 @@ class TelemetrySnapshot {
 /// simulador (o el ESP32 en el futuro). Ver docs/firestore-contract.md.
 abstract class TelemetryRepository {
   Stream<TelemetrySnapshot> watchReading(String sensorId);
+
+  /// Equipos asociados al sensor, ordenados por nombre (HU-M03).
+  Stream<List<Actuador>> watchActuators(String sensorId);
 }
 
 class FirestoreTelemetryRepository implements TelemetryRepository {
   static const String collection = 'telemetria';
+  static const String actuatorsCollection = 'actuadores';
 
   FirestoreTelemetryRepository({FirebaseFirestore? firestore})
       : _firestore = firestore;
@@ -45,6 +50,21 @@ class FirestoreTelemetryRepository implements TelemetryRepository {
         reading: data == null ? null : SensorReading.fromFirestore(doc.id, data),
         fromCache: doc.metadata.isFromCache,
       );
+    });
+  }
+
+  @override
+  Stream<List<Actuador>> watchActuators(String sensorId) {
+    return _db
+        .collection(actuatorsCollection)
+        .where('sensor_id', isEqualTo: sensorId)
+        .snapshots()
+        .map((query) {
+      final lista = query.docs
+          .map((d) => Actuador.fromFirestore(d.id, d.data()))
+          .toList()
+        ..sort((a, b) => a.nombre.compareTo(b.nombre));
+      return lista;
     });
   }
 }
