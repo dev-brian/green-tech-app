@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:intl/intl.dart';
 import '../models/sensor_model.dart';
 import '../services/sensor_data_controller.dart';
 import '../utils/colors.dart';
@@ -174,6 +175,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           return ListView(
                             padding: const EdgeInsets.all(18),
                             children: [
+                              ValueListenableBuilder<bool>(
+                                valueListenable: _controller.offline,
+                                builder: (context, offline, _) => offline
+                                    ? Padding(
+                                        padding:
+                                            const EdgeInsets.only(bottom: 14),
+                                        child: _buildOfflineBanner(
+                                            reading.timestamp, isDark),
+                                      )
+                                    : const SizedBox.shrink(),
+                              ),
                               if (errorMsg != null) ...[
                                 _buildInlineErrorBanner(errorMsg, isDark),
                                 const SizedBox(height: 14),
@@ -404,6 +416,36 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  /// Sin red: Firestore sigue entregando la caché local. Se avisa para que
+  /// el productor sepa que los valores pueden no ser los actuales.
+  Widget _buildOfflineBanner(DateTime ultimaLectura, bool isDark) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.accentOrange.withValues(alpha: isDark ? 0.18 : 0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.accentOrange.withValues(alpha: 0.4)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.wifi_off, color: AppColors.accentOrange, size: 18),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'Sin conexión · mostrando los últimos datos guardados '
+              '(${DateFormat('HH:mm').format(ultimaLectura)})',
+              style: GoogleFonts.inter(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: AppColors.accentOrange,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

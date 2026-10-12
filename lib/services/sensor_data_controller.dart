@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -18,15 +19,27 @@ import 'telemetry_repository.dart';
 /// Dashboard, Detalle de sensor y Alertas leen todos de aquí, así que
 /// siempre están sincronizados entre sí.
 class SensorDataController {
-  SensorDataController._internal({TelemetryRepository? repository})
-      : _repository = repository ?? FirestoreTelemetryRepository();
+  SensorDataController._internal({
+    TelemetryRepository? repository,
+    this.offlineDelay = const Duration(seconds: 3),
+  }) : _repository = repository ?? FirestoreTelemetryRepository();
   static final SensorDataController instance =
       SensorDataController._internal();
 
   /// Instancia aislada para pruebas, con un repositorio falso.
   @visibleForTesting
-  factory SensorDataController.forTesting(TelemetryRepository repository) =>
-      SensorDataController._internal(repository: repository);
+  factory SensorDataController.forTesting(
+    TelemetryRepository repository, {
+    Duration offlineDelay = Duration.zero,
+  }) =>
+      SensorDataController._internal(
+          repository: repository, offlineDelay: offlineDelay);
+
+  /// Cuánto tiempo seguido deben llegar datos solo de caché antes de
+  /// avisar "sin conexión". Al abrir la app Firestore suele emitir primero
+  /// la caché y un instante después el servidor; sin este margen el aviso
+  /// parpadearía en cada arranque.
+  final Duration offlineDelay;
 
   static const String defaultSensorId = 'ESP32-01';
 
@@ -39,12 +52,17 @@ class SensorDataController {
   final ValueNotifier<bool> loading = ValueNotifier(false);
   final ValueNotifier<String?> error = ValueNotifier(null);
 
+  /// true cuando lo que se muestra viene de la caché local porque no hay
+  /// conexión con Firestore (señal típica en campo / red rural).
+  final ValueNotifier<bool> offline = ValueNotifier(false);
+
   // --- Clima de la ubicación (OpenWeather) ---
   final ValueNotifier<SensorReading?> weather = ValueNotifier(null);
   final ValueNotifier<bool> weatherLoading = ValueNotifier(false);
   final ValueNotifier<String?> weatherError = ValueNotifier(null);
 
   StreamSubscription<TelemetrySnapshot>? _subscription;
+  Timer? _offlineTimer;
   String _sensorId = defaultSensorId;
 
   bool _notifTemp = true;
@@ -109,6 +127,16 @@ class SensorDataController {
     _subscription = null;
     error.value = null;
 
+    // Arranque en frío sin red: pinta la última lectura guardada mientras
+    // llega el primer snapshot (o si nunca llega).
+    if (currentReading.value == null) {
+      final cached = await _loadCachedReading();
+      if (cached != null && currentReading.value == null) {
+        currentReading.value = cached;
+        alerts.value = cached.alertasGeneradas;
+      }
+    }
+
     if (!firebaseReady) {
       loading.value = false;
       error.value = 'Firebase no está configurado en este dispositivo';
@@ -128,12 +156,51 @@ class SensorDataController {
   void _onSnapshot(TelemetrySnapshot snap) {
     loading.value = false;
     error.value = null;
+    _updateOffline(snap.fromCache);
     final reading = snap.reading;
     // Documento inexistente: dejamos la última lectura conocida (si la
     // hay) y la UI muestra "Esperando datos del sensor".
     if (reading == null) return;
     currentReading.value = reading;
     _refreshAlerts(reading);
+    if (!snap.fromCache) _saveCachedReading(reading);
+  }
+
+  void _updateOffline(bool fromCache) {
+    if (!fromCache) {
+      _offlineTimer?.cancel();
+      _offlineTimer = null;
+      offline.value = false;
+      return;
+    }
+    if (offline.value || _offlineTimer != null) return;
+    _offlineTimer = Timer(offlineDelay, () {
+      _offlineTimer = null;
+      offline.value = true;
+    });
+  }
+
+  String get _cacheKey => 'ultima_lectura_$_sensorId';
+
+  Future<SensorReading?> _loadCachedReading() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString(_cacheKey);
+      if (raw == null) return null;
+      return SensorReading.fromJson(jsonDecode(raw) as Map<String, dynamic>);
+    } catch (e) {
+      debugPrint('SensorDataController: caché local ilegible ($e)');
+      return null;
+    }
+  }
+
+  Future<void> _saveCachedReading(SensorReading reading) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_cacheKey, jsonEncode(reading.toJson()));
+    } catch (e) {
+      debugPrint('SensorDataController: no se pudo guardar la caché ($e)');
+    }
   }
 
   /// Re-suscribe los sensores y recarga el clima de la ubicación.
@@ -142,6 +209,8 @@ class SensorDataController {
   }
 
   Future<void> stop() async {
+    _offlineTimer?.cancel();
+    _offlineTimer = null;
     await _subscription?.cancel();
     _subscription = null;
   }
