@@ -5,11 +5,10 @@ import '../models/sensor_model.dart';
 import '../services/sensor_data_controller.dart';
 import '../utils/colors.dart';
 import '../utils/neumorphism.dart';
-import '../widgets/location_picker_dialog.dart';
 
-/// Muestra la misma lectura activa que el Dashboard (clima real o
-/// simulado vía sliders) — ya no hace su propio fetch por separado, para
-/// que nunca se desincronice de lo que se ve en la pantalla principal.
+/// Muestra la misma lectura activa que el Dashboard (stream de Firestore)
+/// — no hace su propio fetch por separado, para que nunca se desincronice
+/// de lo que se ve en la pantalla principal.
 class SensorDetailScreen extends StatefulWidget {
   const SensorDetailScreen({super.key});
 
@@ -19,18 +18,6 @@ class SensorDetailScreen extends StatefulWidget {
 
 class _SensorDetailScreenState extends State<SensorDetailScreen> {
   final SensorDataController _controller = SensorDataController.instance;
-
-  Future<void> _changeLocation() async {
-    final result = await showLocationPicker(
-      context: context,
-      api: _controller.api,
-      initialLocation: _controller.currentLocation,
-    );
-
-    if (result != null && result.trim().isNotEmpty) {
-      await _controller.loadRealWeather(location: result);
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -55,11 +42,6 @@ class _SensorDetailScreenState extends State<SensorDetailScreen> {
             ),
             onPressed: () => AppThemeController.toggleTheme(),
           ),
-          IconButton(
-            icon: const Icon(Icons.location_on_outlined),
-            tooltip: 'Cambiar ubicación',
-            onPressed: _changeLocation,
-          ),
         ],
       ),
       body: ValueListenableBuilder<SensorReading?>(
@@ -70,42 +52,13 @@ class _SensorDetailScreenState extends State<SensorDetailScreen> {
                 child: CircularProgressIndicator(color: AppColors.primary));
           }
           return RefreshIndicator(
-            onRefresh: () => _controller.loadRealWeather(),
+            onRefresh: () => _controller.start(),
             child: Center(
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 800),
                 child: ListView(
                   padding: const EdgeInsets.all(18),
                   children: [
-                    if (_controller.isSimulating)
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 14),
-                        child: Container(
-                          padding: const EdgeInsets.all(10),
-                          decoration: BoxDecoration(
-                            color: AppColors.accentOrange
-                                .withValues(alpha: isDark ? 0.18 : 0.12),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Row(
-                            children: [
-                              const Icon(Icons.tune,
-                                  color: AppColors.accentOrange, size: 16),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  'Mostrando valores simulados desde el Dashboard',
-                                  style: GoogleFonts.inter(
-                                    fontSize: 12,
-                                    color: textColor,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
                     Container(
                       decoration: NeumorphismDecoration.extruded(
                         context: context,

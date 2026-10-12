@@ -8,7 +8,6 @@ import '../utils/neumorphism.dart';
 import '../widgets/chart_widget.dart';
 import '../widgets/location_picker_dialog.dart';
 import '../widgets/sensor_card.dart';
-import '../widgets/sensor_simulator_panel.dart';
 import 'alerts_screen.dart';
 import 'history_screen.dart';
 import 'profile_screen.dart';
@@ -31,14 +30,22 @@ class _DashboardScreenState extends State<DashboardScreen> {
   @override
   void initState() {
     super.initState();
-    _loadAll();
+    // Los sensores ya vienen por stream (SensorDataController.start en
+    // main.dart); aquí solo cargamos el clima y la gráfica de pronóstico.
+    _loadWeather();
   }
 
-  Future<void> _loadAll() async {
+  Future<void> _loadWeather() async {
     await _controller.loadRealWeather();
-    if (_controller.error.value == null) {
+    if (_controller.weatherError.value == null) {
       await _loadChart();
     }
+  }
+
+  /// Reintenta la suscripción a los sensores y recarga clima + gráfica.
+  Future<void> _loadAll() async {
+    await _controller.start();
+    await _loadWeather();
   }
 
   Future<void> _loadChart() async {
@@ -88,7 +95,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
 
     if (result != null && result.trim().isNotEmpty) {
-      await _loadAll();
+      await _loadWeather();
     }
   }
 
@@ -223,7 +230,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                 ],
                               ),
                               const SizedBox(height: 20),
-                              SensorSimulatorPanel(reading: reading, isDark: isDark),
+                              _buildWeatherCard(isDark),
                               const SizedBox(height: 28),
                               Row(
                                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -320,7 +327,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             const Icon(Icons.cloud_off, color: AppColors.critico, size: 42),
             const SizedBox(height: 12),
             Text(
-              'No se pudo cargar el clima',
+              'No se pudieron cargar los sensores',
               style: GoogleFonts.poppins(
                 fontSize: 16,
                 fontWeight: FontWeight.w700,
@@ -344,11 +351,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 foregroundColor: Colors.white,
               ),
             ),
-            const SizedBox(height: 8),
-            TextButton(
-              onPressed: _changeLocation,
-              child: const Text('Cambiar ubicación'),
-            ),
           ],
         ),
       ),
@@ -369,7 +371,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           const SizedBox(width: 8),
           Expanded(
             child: Text(
-              'No se pudo actualizar el clima: $message',
+              'No se pudo actualizar los sensores: $message',
               style: GoogleFonts.inter(fontSize: 12, color: AppColors.critico),
             ),
           ),
@@ -447,9 +449,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     DateFormat('dd/MM · HH:mm').format(reading.timestamp),
                     subtextColor,
                     isDark),
-                if (_controller.isSimulating)
-                  _buildStatusChip(
-                      'Modo', 'Simulado', AppColors.accentOrange, isDark),
               ],
             )
           ],
@@ -490,6 +489,78 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  /// Clima exterior de la ubicación elegida (OpenWeather). Es contexto
+  /// para el productor; no se mezcla con las lecturas de los sensores.
+  Widget _buildWeatherCard(bool isDark) {
+    final textColor = isDark ? AppColors.darkTextPrimary : AppColors.textPrimary;
+    final subtextColor =
+        isDark ? AppColors.darkTextSecondary : AppColors.textSecondary;
+
+    return ValueListenableBuilder<SensorReading?>(
+      valueListenable: _controller.weather,
+      builder: (context, clima, _) {
+        return ValueListenableBuilder<String?>(
+          valueListenable: _controller.weatherError,
+          builder: (context, weatherError, __) {
+            final String detalle;
+            if (clima != null) {
+              detalle = '${clima.temperatura.toStringAsFixed(1)}°C · '
+                  'Humedad ${clima.humedadAire.toStringAsFixed(0)}%';
+            } else if (weatherError != null) {
+              detalle = 'No se pudo cargar el clima';
+            } else {
+              detalle = 'Cargando clima…';
+            }
+
+            return Container(
+              padding: const EdgeInsets.all(16),
+              decoration: NeumorphismDecoration.extruded(
+                context: context,
+                isDark: isDark,
+                borderRadius: 18,
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.wb_cloudy_outlined,
+                      color: AppColors.secondary, size: 28),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Clima en ${_controller.currentLocation}',
+                          style: GoogleFonts.poppins(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                            color: textColor,
+                          ),
+                        ),
+                        Text(
+                          detalle,
+                          style: GoogleFonts.inter(
+                            fontSize: 13,
+                            color: weatherError != null && clima == null
+                                ? AppColors.critico
+                                : subtextColor,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: _changeLocation,
+                    child: const Text('Cambiar'),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
     );
   }
 

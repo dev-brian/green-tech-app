@@ -1,34 +1,51 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/sensor_model.dart';
 import 'api_service.dart';
+import 'app_status.dart';
 import 'notification_service.dart';
+import 'telemetry_repository.dart';
 
 /// Fuente única de la lectura "activa" del cultivo.
 ///
-/// Mientras no haya sensores ESP32 reales conectados, la lectura se arma
-/// así: se toma el clima real de la ubicación elegida (vía [ApiService])
-/// como base, y sobre esa base se pueden aplicar overrides manuales
-/// (los sliders del Dashboard) para simular lo que un sensor real
-/// reportaría. Dashboard, Detalle de sensor y Alertas leen todos de aquí,
-/// así que siempre están sincronizados entre sí — ya no cada pantalla
-/// calcula su propio estado por separado.
+/// Los sensores llegan en tiempo real desde Firestore (`telemetria/`, ver
+/// [TelemetryRepository]); la app no simula nada, eso lo hace un proyecto
+/// aparte que escribe en la misma colección. Por separado se mantiene el
+/// clima de la ubicación elegida (OpenWeather vía [ApiService]) en
+/// [weather], que ya no sobrescribe la lectura de los sensores.
+/// Dashboard, Detalle de sensor y Alertas leen todos de aquí, así que
+/// siempre están sincronizados entre sí.
 class SensorDataController {
-  SensorDataController._internal();
+  SensorDataController._internal({TelemetryRepository? repository})
+      : _repository = repository ?? FirestoreTelemetryRepository();
   static final SensorDataController instance =
       SensorDataController._internal();
 
-  final ApiService api = ApiService();
+  /// Instancia aislada para pruebas, con un repositorio falso.
+  @visibleForTesting
+  factory SensorDataController.forTesting(TelemetryRepository repository) =>
+      SensorDataController._internal(repository: repository);
 
+  static const String defaultSensorId = 'ESP32-01';
+
+  final ApiService api = ApiService();
+  final TelemetryRepository _repository;
+
+  // --- Sensores (Firestore) ---
   final ValueNotifier<SensorReading?> currentReading = ValueNotifier(null);
   final ValueNotifier<List<AlertItem>> alerts = ValueNotifier(const []);
   final ValueNotifier<bool> loading = ValueNotifier(false);
   final ValueNotifier<String?> error = ValueNotifier(null);
 
-  SensorReading? _baseline; // última lectura real de clima, sin overrides
-  double? _overrideTemp;
-  double? _overrideHumedadAire;
-  double? _overrideHumedadSuelo;
+  // --- Clima de la ubicación (OpenWeather) ---
+  final ValueNotifier<SensorReading?> weather = ValueNotifier(null);
+  final ValueNotifier<bool> weatherLoading = ValueNotifier(false);
+  final ValueNotifier<String?> weatherError = ValueNotifier(null);
+
+  StreamSubscription<TelemetrySnapshot>? _subscription;
+  String _sensorId = defaultSensorId;
 
   bool _notifTemp = true;
   bool _notifHumedadAire = true;
@@ -81,66 +98,68 @@ class SensorDataController {
 
   String get currentLocation => api.currentLocation;
 
-  bool get isSimulating =>
-      _overrideTemp != null ||
-      _overrideHumedadAire != null ||
-      _overrideHumedadSuelo != null;
+  String get sensorId => _sensorId;
 
-  /// Trae clima real para [location] (o la ubicación ya seleccionada) y lo
-  /// usa como nueva base, limpiando cualquier simulación previa.
-  Future<void> loadRealWeather({String? location}) async {
-    loading.value = true;
+  /// Se suscribe en tiempo real al documento `telemetria/{sensorId}`.
+  /// Llamarlo de nuevo cancela la suscripción anterior (sirve como
+  /// "reintentar" o para cambiar de sensor).
+  Future<void> start({String? sensorId}) async {
+    _sensorId = sensorId ?? _sensorId;
+    await _subscription?.cancel();
+    _subscription = null;
     error.value = null;
+
+    if (!firebaseReady) {
+      loading.value = false;
+      error.value = 'Firebase no está configurado en este dispositivo';
+      return;
+    }
+
+    loading.value = true;
+    _subscription = _repository.watchReading(_sensorId).listen(
+      _onSnapshot,
+      onError: (Object e) {
+        loading.value = false;
+        error.value = 'No se pudo leer los sensores: $e';
+      },
+    );
+  }
+
+  void _onSnapshot(TelemetrySnapshot snap) {
+    loading.value = false;
+    error.value = null;
+    final reading = snap.reading;
+    // Documento inexistente: dejamos la última lectura conocida (si la
+    // hay) y la UI muestra "Esperando datos del sensor".
+    if (reading == null) return;
+    currentReading.value = reading;
+    _refreshAlerts(reading);
+  }
+
+  /// Re-suscribe los sensores y recarga el clima de la ubicación.
+  Future<void> refresh() async {
+    await Future.wait([start(), loadRealWeather()]);
+  }
+
+  Future<void> stop() async {
+    await _subscription?.cancel();
+    _subscription = null;
+  }
+
+  /// Trae el clima real para [location] (o la ubicación ya seleccionada).
+  Future<void> loadRealWeather({String? location}) async {
+    weatherLoading.value = true;
+    weatherError.value = null;
     if (location != null && location.trim().isNotEmpty) {
       api.setLocation(location.trim());
     }
     try {
-      final reading = await api.getCurrentReading();
-      _baseline = reading;
-      _overrideTemp = null;
-      _overrideHumedadAire = null;
-      _overrideHumedadSuelo = null;
-      _applyCurrentReading();
+      weather.value = await api.getCurrentReading();
     } catch (e) {
-      error.value = e.toString().replaceFirst('Exception: ', '');
+      weatherError.value = e.toString().replaceFirst('Exception: ', '');
     } finally {
-      loading.value = false;
+      weatherLoading.value = false;
     }
-  }
-
-  /// Aplica overrides manuales (sliders del simulador) sobre la última
-  /// lectura base real. No vuelve a llamar a la API del clima.
-  void setSimulatedValues({
-    double? temperatura,
-    double? humedadAire,
-    double? humedadSuelo,
-  }) {
-    if (_baseline == null) return;
-    if (temperatura != null) _overrideTemp = temperatura;
-    if (humedadAire != null) _overrideHumedadAire = humedadAire;
-    if (humedadSuelo != null) _overrideHumedadSuelo = humedadSuelo;
-    _applyCurrentReading();
-  }
-
-  /// Quita los overrides manuales y vuelve a mostrar el clima real base.
-  void resetSimulation() {
-    _overrideTemp = null;
-    _overrideHumedadAire = null;
-    _overrideHumedadSuelo = null;
-    _applyCurrentReading();
-  }
-
-  void _applyCurrentReading() {
-    final base = _baseline;
-    if (base == null) return;
-    final reading = base.copyWith(
-      temperatura: _overrideTemp,
-      humedadAire: _overrideHumedadAire,
-      humedadSuelo: _overrideHumedadSuelo,
-      timestamp: DateTime.now(),
-    );
-    currentReading.value = reading;
-    _refreshAlerts(reading);
   }
 
   void _refreshAlerts(SensorReading reading) {
@@ -148,9 +167,9 @@ class SensorDataController {
     alerts.value = nuevas;
 
     final estadoGeneral = reading.estadoGeneral;
-    // Solo disparamos notificación cuando el estado general EMPEORA
-    // respecto al último aviso, para no saturar con notificaciones
-    // repetidas mientras el usuario arrastra un slider.
+    // Solo disparamos notificación cuando el estado general CAMBIA
+    // respecto al último aviso, para no repetir la misma notificación con
+    // cada lectura nueva que llega del stream.
     if (estadoGeneral != EstadoNivel.normal &&
         estadoGeneral != _ultimoEstadoNotificado) {
       for (final alerta in nuevas.where((a) => a.nivel != EstadoNivel.normal)) {
