@@ -2,9 +2,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 /// Datos de sesión no sensibles guardados en el dispositivo (HU-M01 / Task 1.3).
 ///
-/// El token de Firebase Auth lo persiste el propio SDK de forma segura
-/// (Keychain en iOS, almacenamiento cifrado en Android). Aquí solo guardamos
-/// conveniencias como el último email usado para prellenar el login.
+/// Los tokens de sesión van cifrados en `SecureTokenStorage`
+/// (Android Keystore / iOS Keychain). Aquí, en SharedPreferences, solo guardamos
+/// conveniencias no sensibles como el último email usado para prellenar el login.
 /// Nunca se guarda la contraseña.
 class SessionStorage {
   SessionStorage._();

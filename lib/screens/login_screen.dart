@@ -75,6 +75,30 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  Future<void> _signInWithGoogle() async {
+    FocusScope.of(context).unfocus();
+    setState(() {
+      _loading = true;
+      _errorMsg = null;
+    });
+    try {
+      final ok = await FirebaseService.instance.signInWithGoogle();
+      if (!ok || !mounted) return; // el usuario canceló
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => const DashboardScreen()),
+      );
+    } on AuthException catch (e) {
+      if (mounted) setState(() => _errorMsg = e.message);
+    } catch (_) {
+      if (mounted) {
+        setState(() => _errorMsg =
+            'No se pudo iniciar sesión con Google. Inténtalo de nuevo');
+      }
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
   void _openForgotPassword() {
     Navigator.of(context).push(MaterialPageRoute(
       builder: (_) =>
@@ -167,6 +191,25 @@ class _LoginScreenState extends State<LoginScreen> {
                   onPressed: _loading ? null : _submit,
                   child:
                       Text(_isRegisterMode ? 'Registrarse' : 'Iniciar sesión'),
+                ),
+                const SizedBox(height: 20),
+                const Row(
+                  children: [
+                    Expanded(child: Divider()),
+                    Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 12),
+                      child: Text('o',
+                          style: TextStyle(color: AppColors.textSecondary)),
+                    ),
+                    Expanded(child: Divider()),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                OutlinedButton.icon(
+                  key: const Key('login_google'),
+                  onPressed: _loading ? null : _signInWithGoogle,
+                  icon: const Icon(Icons.g_mobiledata, size: 30),
+                  label: const Text('Continuar con Google'),
                 ),
                 const SizedBox(height: 12),
                 TextButton(

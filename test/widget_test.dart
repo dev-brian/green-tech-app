@@ -42,6 +42,7 @@ void main() {
 
       expect(find.text('Bienvenido de nuevo'), findsOneWidget);
       expect(find.text('¿Olvidaste tu contraseña?'), findsOneWidget);
+      expect(find.text('Continuar con Google'), findsOneWidget);
     });
 
     testWidgets('valida campos vacíos sin llamar a Firebase', (tester) async {

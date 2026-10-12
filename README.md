@@ -19,23 +19,27 @@ Dashboard → Detalle de sensores → Histórico → Alertas → Perfil.
    flutter run
    ```
 
-No necesitas Firebase todavía: `FirebaseService` y `ApiService` usan datos simulados
-(incluyendo el JSON de prueba que definiste) para que puedas navegar toda la app desde ya.
+`ApiService` aún usa datos simulados; la autenticación ya es real con Firebase.
 
-## 🔐 Configurar Firebase Auth (HU-M01)
+## 🔐 Firebase Auth (HU-M01) — ya conectado
 
-La autenticación ya usa Firebase Auth real. Antes del primer `flutter run`:
+- Proyecto Firebase: `green-tech-96bb2` · App Android: `com.example.greentech_app`
+- Config: `android/app/google-services.json` y `lib/firebase_options.dart`
+- Proveedores habilitados en la consola: **Correo electrónico/contraseña** y **Google**
+- Google en Android requiere registrar la huella SHA-1 de la llave de firma en
+  Firebase → Configuración del proyecto → Tu app Android. Cada integrante debe agregar
+  la SHA-1 de su `debug.keystore` (`cd android && ./gradlew signingReport`) y volver a
+  descargar `google-services.json`.
 
-1. En la consola de Firebase → *Authentication* → *Sign-in method*, habilita **Correo electrónico/contraseña**.
-2. Instala la CLI y genera la configuración:
-   ```bash
-   dart pub global activate flutterfire_cli
-   flutterfire configure
-   ```
-   Esto crea `lib/firebase_options.dart` y los archivos nativos (`google-services.json`, `GoogleService-Info.plist`).
-3. `flutter pub get && flutter run`
+| Task | Dónde |
+|---|---|
+| 1.1 UI de login y recuperación | `lib/screens/login_screen.dart`, `lib/screens/forgot_password_screen.dart` |
+| 1.2 Integración con Firebase Auth | `lib/services/firebase_service.dart` |
+| 1.3 Persistencia segura de sesión | `lib/services/secure_token_storage.dart` (ID token cifrado con Android Keystore vía `flutter_secure_storage`) |
 
-La sesión se mantiene al cerrar la app (Task 1.3) y el login recuerda el último email usado.
+Para correrlo: `flutter clean && flutter pub get && flutter run` con un emulador/celular Android (API 23+).
+Si cambias el `applicationId` o agregas iOS/Web, regenera la config con
+`flutterfire configure --project=green-tech-96bb2`.
 
 ## 🔌 Conectar datos reales
 
@@ -65,8 +69,7 @@ lib/
 
 ## ✅ Próximos pasos sugeridos
 
-1. Conectar Firebase Auth real.
-2. Conectar tu API / MQTT bridge de los ESP32.
-3. Agregar notificaciones push (Firebase Cloud Messaging) para las alertas críticas.
-4. Agregar el logo real de GREEN TECH en `assets/images/` y en el Splash.
-5. Persistir preferencias de notificaciones (perfil) con `shared_preferences`.
+1. Conectar tu API / MQTT bridge de los ESP32.
+2. Agregar notificaciones push (Firebase Cloud Messaging) para las alertas críticas.
+3. Agregar el logo real de GREEN TECH en `assets/images/` y en el Splash.
+4. Persistir preferencias de notificaciones (perfil) con `shared_preferences`.
