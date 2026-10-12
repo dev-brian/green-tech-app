@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:google_sign_in/google_sign_in.dart';
 
+import 'app_status.dart';
 import 'secure_token_storage.dart';
 import 'session_storage.dart';
 
@@ -29,12 +30,22 @@ class FirebaseService {
   // (permite construir pantallas en tests sin inicializar Firebase).
   FirebaseAuth get _auth => FirebaseAuth.instance;
 
-  User? get currentUser => _auth.currentUser;
-  String? get currentUserEmail => _auth.currentUser?.email;
-  bool get isLoggedIn => _auth.currentUser != null;
+  // Si Firebase no se inicializó (ver main.dart), nada toca FirebaseAuth
+  // y la app sigue funcionando en modo local.
+  User? get currentUser => firebaseReady ? _auth.currentUser : null;
+  String? get currentUserEmail => currentUser?.email;
+  bool get isLoggedIn => currentUser != null;
 
   /// Emite el usuario actual cada vez que cambia el estado de sesión.
-  Stream<User?> authStateChanges() => _auth.authStateChanges();
+  Stream<User?> authStateChanges() =>
+      firebaseReady ? _auth.authStateChanges() : Stream.value(null);
+
+  void _ensureReady() {
+    if (!firebaseReady) {
+      throw const AuthException('firebase-not-ready',
+          'Firebase no está disponible. Usa "Continuar sin cuenta"');
+    }
+  }
 
   /// Configura la persistencia local de la sesión.
   /// En Android/iOS Firebase ya persiste la sesión por defecto;
@@ -89,6 +100,7 @@ class FirebaseService {
   /// y devuelve el usuario (o null si no hay sesión activa).
   Future<User?> restoreSession(
       {Duration timeout = const Duration(seconds: 5)}) async {
+    if (!firebaseReady) return null;
     try {
       final user = await _auth.authStateChanges().first.timeout(timeout);
       if (user == null) return null;
@@ -110,6 +122,7 @@ class FirebaseService {
   }
 
   Future<void> signIn({required String email, required String password}) async {
+    _ensureReady();
     _validateCredentials(email, password);
     final cred = await _guard(() => _auth.signInWithEmailAndPassword(
         email: email.trim(), password: password));
@@ -117,6 +130,7 @@ class FirebaseService {
   }
 
   Future<void> signUp({required String email, required String password}) async {
+    _ensureReady();
     _validateCredentials(email, password);
     final cred = await _guard(() => _auth.createUserWithEmailAndPassword(
         email: email.trim(), password: password));
@@ -125,6 +139,7 @@ class FirebaseService {
 
   /// Envía el correo de restablecimiento de contraseña.
   Future<void> sendPasswordResetEmail({required String email}) async {
+    _ensureReady();
     if (email.trim().isEmpty) {
       throw const AuthException('missing-email', 'Ingresa tu email');
     }
@@ -148,6 +163,7 @@ class FirebaseService {
   /// Inicia sesión con una cuenta de Google.
   /// Devuelve `false` si el usuario cerró el selector de cuentas.
   Future<bool> signInWithGoogle() async {
+    _ensureReady();
     final GoogleSignInAccount account;
     try {
       await _initGoogle();
@@ -182,6 +198,7 @@ class FirebaseService {
 
   /// Cierra sesión y borra los tokens guardados en el dispositivo.
   Future<void> signOut() async {
+    if (!firebaseReady) return;
     await _guard(() => _auth.signOut());
     await SecureTokenStorage.clear();
     // Cierra también la cuenta de Google para que la próxima vez

@@ -10,31 +10,37 @@ dependencies:
   flutter:
     sdk: flutter
   cupertino_icons: ^1.0.6
+  http: ^1.2.0
+  google_fonts: ^6.2.1
+  flutter_dotenv: ^5.1.0
 
   # Gráficas para dashboard e histórico
   fl_chart: ^0.68.0
 
   # Permite seleccionar imágenes para foto de perfil
-  image_picker: ^0.8.7+6
+  image_picker: 0.8.9
 
   # Guardar ruta/ajustes simples en el dispositivo
   shared_preferences: ^2.2.0
 
+  # Notificaciones locales para alertas (funciona sin Firebase/FCM)
+  flutter_local_notifications: ^17.2.4
+
   # Acceso a rutas de archivos (para persistir la imagen localmente)
   path_provider: ^2.0.15
 
-  # Firebase (HU-M01: autenticación)
+  # Firebase (proyecto green-tech-96bb2, ver lib/firebase_options.dart)
   firebase_core: ^4.1.0
   firebase_auth: ^6.1.0
   # Inicio de sesión con Google (selector de cuentas nativo de Android)
   google_sign_in: ^7.2.0
+  # cloud_firestore 6.x es la versión compatible con firebase_core 4.x
+  cloud_firestore: ^6.0.0
 
-  # Task 1.3: guarda el token de sesión cifrado (Android Keystore)
+  # HU-M01 / Task 1.3: guarda el token de sesión cifrado (Android Keystore)
   flutter_secure_storage: ^10.0.0
-  # cloud_firestore: ^5.4.4
 
   # HTTP para consumir tu API / MQTT bridge de los ESP32
-  http: ^1.2.1
 
   # Formateo de fechas ("Hace 5 seg", etc.)
   intl: ^0.19.0
@@ -46,5 +52,7 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  assets:
+    - .env
   # assets:
   #   - assets/images/logo.png

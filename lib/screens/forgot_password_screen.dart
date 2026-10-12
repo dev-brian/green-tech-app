@@ -114,7 +114,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       children: [
         const SizedBox(height: 48),
         const Icon(Icons.mark_email_read_outlined,
-            color: AppColors.normal, size: 64),
+            color: AppColors.primary, size: 64),
         const SizedBox(height: 20),
         Text('Revisa tu correo',
             textAlign: TextAlign.center,

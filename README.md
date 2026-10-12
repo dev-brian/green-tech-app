@@ -24,12 +24,13 @@ Dashboard → Detalle de sensores → Histórico → Alertas → Perfil.
 ## 🔐 Firebase Auth (HU-M01) — ya conectado
 
 - Proyecto Firebase: `green-tech-96bb2` · App Android: `com.example.greentech_app`
-- Config: `android/app/google-services.json` y `lib/firebase_options.dart`
+- Config: `lib/firebase_options.dart` (versionado). `android/app/google-services.json`
+  está en `.gitignore` y no es necesario para compilar: Firebase se inicializa con
+  `DefaultFirebaseOptions` y Google Sign-In con el `serverClientId` del proyecto.
 - Proveedores habilitados en la consola: **Correo electrónico/contraseña** y **Google**
 - Google en Android requiere registrar la huella SHA-1 de la llave de firma en
   Firebase → Configuración del proyecto → Tu app Android. Cada integrante debe agregar
-  la SHA-1 de su `debug.keystore` (`cd android && ./gradlew signingReport`) y volver a
-  descargar `google-services.json`.
+  la SHA-1 de su `debug.keystore` (`cd android && ./gradlew signingReport`).
 
 | Task | Dónde |
 |---|---|

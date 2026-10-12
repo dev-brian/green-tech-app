@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:greentech_app/main.dart';
 import 'package:greentech_app/screens/forgot_password_screen.dart';
 import 'package:greentech_app/screens/login_screen.dart';
 import 'package:greentech_app/services/firebase_service.dart';
@@ -42,7 +43,7 @@ void main() {
 
       expect(find.text('Bienvenido de nuevo'), findsOneWidget);
       expect(find.text('¿Olvidaste tu contraseña?'), findsOneWidget);
-      expect(find.text('Continuar con Google'), findsOneWidget);
+      expect(find.text('Iniciar sesión con Google'), findsOneWidget);
     });
 
     testWidgets('valida campos vacíos sin llamar a Firebase', (tester) async {
@@ -77,5 +78,16 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('admin@greentech.com'), findsOneWidget);
+  });
+
+  testWidgets('renders the splash screen', (WidgetTester tester) async {
+    await tester.pumpWidget(const MyApp());
+
+    expect(find.text('GREEN TECH'), findsOneWidget);
+    expect(find.text('Monitoreo inteligente de cultivos'), findsOneWidget);
+
+    // Pump time to allow splash screen timer to finish
+    await tester.pump(const Duration(seconds: 3));
+    await tester.pumpAndSettle();
   });
 }

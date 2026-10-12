@@ -1,33 +1,61 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/sensor_model.dart';
 
-/// Paleta central de la app. Todo el semáforo de colores vive aquí
-/// para que sea fácil de ajustar sin tocar las pantallas.
+/// Controlador global para cambiar de tema (Modo Claro / Oscuro) dinámicamente
+class AppThemeController {
+  static final ValueNotifier<ThemeMode> themeMode = ValueNotifier(ThemeMode.light);
+
+  static Future<void> init() async {
+    final prefs = await SharedPreferences.getInstance();
+    final isDark = prefs.getBool('is_dark_mode') ?? false;
+    themeMode.value = isDark ? ThemeMode.dark : ThemeMode.light;
+  }
+
+  static Future<void> toggleTheme() async {
+    final newMode = themeMode.value == ThemeMode.light ? ThemeMode.dark : ThemeMode.light;
+    themeMode.value = newMode;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('is_dark_mode', newMode == ThemeMode.dark);
+  }
+
+  static bool get isDark => themeMode.value == ThemeMode.dark;
+}
+
+/// Paleta Bio-Tech y Neumórfica de la app
 class AppColors {
   AppColors._();
 
-  static const Color primary = Color(0xFF316B43);
-  static const Color primaryLight = Color(0xFF5F9B6B);
-  static const Color primaryDark = Color(0xFF1F462F);
-  static const Color accent = Color(0xFF8FAF77);
-  static const Color background = Color(0xFFF7F4EA);
-  static const Color surface = Color(0xFFFFFFFF);
-  static const Color surfaceVariant = Color(0xFFF0F2E7);
-  static const Color border = Color(0xFFD8D3C8);
-  static const Color textPrimary = Color(0xFF25332B);
-  static const Color textSecondary = Color(0xFF6D7469);
-  static const Color hint = Color(0xFF9AA091);
+  // Colorimetría Bio-Tech vibrante
+  static const Color primary = Color(0xFF10B981); // Bio Emerald
+  static const Color primaryDark = Color(0xFF059669);
+  static const Color secondary = Color(0xFF0284C7); // Tech Sapphire
+  static const Color secondaryDark = Color(0xFF0369A1);
+  static const Color mintAccent = Color(0xFF34D399); // Mint Glow Accent
+  static const Color accentOrange = Color(0xFFF59E0B); // Warning Amber
+  static const Color critico = Color(0xFFEF4444); // Danger Rose
 
-  static const Color normal = Color(0xFF2F7F4F);
-  static const Color alerta = Color(0xFFB68B34);
-  static const Color critico = Color(0xFFB03D3D);
+  // Fondos y Superficies Neumórficas (Modo Claro)
+  static const Color background = Color(0xFFEAEFF5);
+  static const Color surface = Color(0xFFEAEFF5);
+  static const Color textPrimary = Color(0xFF1E293B);
+  static const Color textSecondary = Color(0xFF64748B);
+  static const Color border = Color(0xFFCBD5E1);
+
+  // Fondos y Superficies Neumórficas (Modo Oscuro)
+  static const Color darkBackground = Color(0xFF0F172A);
+  static const Color darkSurface = Color(0xFF1E293B);
+  static const Color darkTextPrimary = Color(0xFFF8FAFC);
+  static const Color darkTextSecondary = Color(0xFF94A3B8);
+  static const Color darkBorder = Color(0xFF334155);
 
   static Color forEstado(EstadoNivel estado) {
     switch (estado) {
       case EstadoNivel.normal:
-        return normal;
+        return primary;
       case EstadoNivel.alerta:
-        return alerta;
+        return accentOrange;
       case EstadoNivel.critico:
         return critico;
     }
@@ -36,7 +64,7 @@ class AppColors {
   static IconData iconForEstado(EstadoNivel estado) {
     switch (estado) {
       case EstadoNivel.normal:
-        return Icons.check_circle;
+        return Icons.check_circle_rounded;
       case EstadoNivel.alerta:
         return Icons.warning_rounded;
       case EstadoNivel.critico:
@@ -56,96 +84,169 @@ class AppColors {
   }
 }
 
-/// Tema global de Material 3 usado en main.dart
+/// Tema global de Material 3 en Modo Claro
 ThemeData buildAppTheme() {
-  final colorScheme = ColorScheme.light(
+  const colorScheme = ColorScheme.light(
     primary: AppColors.primary,
     onPrimary: Colors.white,
-    secondary: AppColors.accent,
+    secondary: AppColors.secondary,
     onSecondary: Colors.white,
     surface: AppColors.surface,
     onSurface: AppColors.textPrimary,
-    surfaceContainerHighest: AppColors.surfaceVariant,
-    onSurfaceVariant: AppColors.textSecondary,
     outline: AppColors.border,
     error: AppColors.critico,
     onError: Colors.white,
   );
 
+  final baseTextTheme = GoogleFonts.interTextTheme();
+  final poppinsTextTheme = GoogleFonts.poppinsTextTheme();
+
   return ThemeData(
     useMaterial3: true,
     scaffoldBackgroundColor: AppColors.background,
     colorScheme: colorScheme,
-    fontFamily: 'Roboto',
-    appBarTheme: const AppBarTheme(
-      backgroundColor: AppColors.surface,
-      foregroundColor: AppColors.primaryDark,
+    appBarTheme: AppBarTheme(
+      backgroundColor: AppColors.secondary,
+      foregroundColor: Colors.white,
       elevation: 0,
       centerTitle: true,
       surfaceTintColor: Colors.transparent,
-      titleTextStyle: TextStyle(
-        color: AppColors.primaryDark,
-        fontSize: 18,
+      titleTextStyle: poppinsTextTheme.titleLarge?.copyWith(
+        color: Colors.white,
+        fontSize: 20,
         fontWeight: FontWeight.w700,
       ),
-      iconTheme: IconThemeData(color: AppColors.primaryDark),
+      iconTheme: const IconThemeData(color: Colors.white),
     ),
     cardTheme: CardThemeData(
       color: AppColors.surface,
       elevation: 0,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(18),
+      ),
       margin: EdgeInsets.zero,
     ),
-    textTheme: const TextTheme(
-      headlineMedium: TextStyle(
-        fontWeight: FontWeight.bold,
-        fontSize: 26,
+    textTheme: baseTextTheme.copyWith(
+      displayLarge: poppinsTextTheme.displayLarge?.copyWith(
+        fontSize: 32,
+        fontWeight: FontWeight.w900,
         color: AppColors.textPrimary,
       ),
-      titleLarge: TextStyle(
+      headlineMedium: poppinsTextTheme.headlineMedium?.copyWith(
+        fontSize: 22,
         fontWeight: FontWeight.w700,
-        fontSize: 20,
         color: AppColors.textPrimary,
       ),
-      bodyMedium: TextStyle(fontSize: 15, color: AppColors.textSecondary),
-      bodyLarge: TextStyle(fontSize: 16, color: AppColors.textPrimary),
-    ),
-    elevatedButtonTheme: ElevatedButtonThemeData(
-      style: ElevatedButton.styleFrom(
-        backgroundColor: AppColors.primary,
-        foregroundColor: Colors.white,
-        padding: const EdgeInsets.symmetric(vertical: 16),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-        textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+      titleLarge: poppinsTextTheme.titleLarge?.copyWith(
+        fontSize: 18,
+        fontWeight: FontWeight.w600,
+        color: AppColors.textPrimary,
       ),
-    ),
-    outlinedButtonTheme: OutlinedButtonThemeData(
-      style: OutlinedButton.styleFrom(
-        foregroundColor: AppColors.primaryDark,
-        backgroundColor: AppColors.surface,
-        side: const BorderSide(color: AppColors.border),
-        padding: const EdgeInsets.symmetric(vertical: 14),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-        textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+      titleMedium: poppinsTextTheme.titleMedium?.copyWith(
+        fontSize: 16,
+        fontWeight: FontWeight.w600,
+        color: AppColors.textPrimary,
       ),
-    ),
-    inputDecorationTheme: InputDecorationTheme(
-      filled: true,
-      fillColor: AppColors.surface,
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(14),
-        borderSide: BorderSide(color: AppColors.border),
+      bodyLarge: baseTextTheme.bodyLarge?.copyWith(
+        fontSize: 16,
+        fontWeight: FontWeight.w400,
+        color: AppColors.textPrimary,
       ),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(14),
-        borderSide: BorderSide(color: AppColors.border),
+      bodyMedium: baseTextTheme.bodyMedium?.copyWith(
+        fontSize: 14,
+        fontWeight: FontWeight.w500,
+        color: AppColors.textSecondary,
       ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(14),
-        borderSide: BorderSide(color: AppColors.primary),
+      bodySmall: baseTextTheme.bodySmall?.copyWith(
+        fontSize: 12,
+        fontWeight: FontWeight.w400,
+        color: AppColors.textSecondary,
       ),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
-      hintStyle: const TextStyle(color: AppColors.hint),
     ),
   );
 }
+
+/// Tema global de Material 3 en Modo Oscuro
+ThemeData buildDarkAppTheme() {
+  const colorScheme = ColorScheme.dark(
+    primary: AppColors.primary,
+    onPrimary: Colors.white,
+    secondary: AppColors.secondary,
+    onSecondary: Colors.white,
+    surface: AppColors.darkSurface,
+    onSurface: AppColors.darkTextPrimary,
+    outline: AppColors.darkBorder,
+    error: AppColors.critico,
+    onError: Colors.white,
+  );
+
+  final baseTextTheme = GoogleFonts.interTextTheme(ThemeData.dark().textTheme);
+  final poppinsTextTheme = GoogleFonts.poppinsTextTheme(ThemeData.dark().textTheme);
+
+  return ThemeData(
+    useMaterial3: true,
+    brightness: Brightness.dark,
+    scaffoldBackgroundColor: AppColors.darkBackground,
+    colorScheme: colorScheme,
+    appBarTheme: AppBarTheme(
+      backgroundColor: const Color(0xFF0B1120),
+      foregroundColor: Colors.white,
+      elevation: 0,
+      centerTitle: true,
+      surfaceTintColor: Colors.transparent,
+      titleTextStyle: poppinsTextTheme.titleLarge?.copyWith(
+        color: Colors.white,
+        fontSize: 20,
+        fontWeight: FontWeight.w700,
+      ),
+      iconTheme: const IconThemeData(color: Colors.white),
+    ),
+    cardTheme: CardThemeData(
+      color: AppColors.darkSurface,
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(18),
+      ),
+      margin: EdgeInsets.zero,
+    ),
+    textTheme: baseTextTheme.copyWith(
+      displayLarge: poppinsTextTheme.displayLarge?.copyWith(
+        fontSize: 32,
+        fontWeight: FontWeight.w900,
+        color: AppColors.darkTextPrimary,
+      ),
+      headlineMedium: poppinsTextTheme.headlineMedium?.copyWith(
+        fontSize: 22,
+        fontWeight: FontWeight.w700,
+        color: AppColors.darkTextPrimary,
+      ),
+      titleLarge: poppinsTextTheme.titleLarge?.copyWith(
+        fontSize: 18,
+        fontWeight: FontWeight.w600,
+        color: AppColors.darkTextPrimary,
+      ),
+      titleMedium: poppinsTextTheme.titleMedium?.copyWith(
+        fontSize: 16,
+        fontWeight: FontWeight.w600,
+        color: AppColors.darkTextPrimary,
+      ),
+      bodyLarge: baseTextTheme.bodyLarge?.copyWith(
+        fontSize: 16,
+        fontWeight: FontWeight.w400,
+        color: AppColors.darkTextPrimary,
+      ),
+      bodyMedium: baseTextTheme.bodyMedium?.copyWith(
+        fontSize: 14,
+        fontWeight: FontWeight.w500,
+        color: AppColors.darkTextSecondary,
+      ),
+      bodySmall: baseTextTheme.bodySmall?.copyWith(
+        fontSize: 12,
+        fontWeight: FontWeight.w400,
+        color: AppColors.darkTextSecondary,
+      ),
+    ),
+  );
+}
+
+

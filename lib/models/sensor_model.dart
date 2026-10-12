@@ -117,3 +117,69 @@ class ChartPoint {
 
   ChartPoint(this.time, this.value);
 }
+
+extension SensorReadingCopy on SensorReading {
+  /// Crea una copia con overrides puntuales — usada por el simulador de
+  /// sensores del Dashboard para "escribir" valores manuales encima del
+  /// clima real, sin perder el resto de la lectura.
+  SensorReading copyWith({
+    String? sensorId,
+    String? ubicacion,
+    double? temperatura,
+    double? humedadAire,
+    double? humedadSuelo,
+    DateTime? timestamp,
+  }) {
+    return SensorReading(
+      sensorId: sensorId ?? this.sensorId,
+      ubicacion: ubicacion ?? this.ubicacion,
+      temperatura: temperatura ?? this.temperatura,
+      humedadAire: humedadAire ?? this.humedadAire,
+      humedadSuelo: humedadSuelo ?? this.humedadSuelo,
+      timestamp: timestamp ?? this.timestamp,
+    );
+  }
+}
+
+extension SensorReadingAlerts on SensorReading {
+  /// Genera las alertas de ESTA lectura usando exactamente los mismos
+  /// rangos que el semáforo (estadoTemperatura/estadoHumedadAire/
+  /// estadoHumedadSuelo), para que el Dashboard y la pantalla de Alertas
+  /// nunca queden desincronizados entre sí.
+  List<AlertItem> get alertasGeneradas {
+    final items = <AlertItem>[];
+
+    void addSiAplica(String prefijo, EstadoNivel estado, String etiqueta, String valorTexto) {
+      if (estado == EstadoNivel.normal) return;
+      final esCritico = estado == EstadoNivel.critico;
+      items.add(AlertItem(
+        id: '$prefijo-${timestamp.millisecondsSinceEpoch}',
+        mensaje: esCritico
+            ? '$etiqueta en nivel crítico ($valorTexto)'
+            : '$etiqueta fuera de rango ($valorTexto)',
+        nivel: estado,
+        fecha: timestamp,
+        activa: true,
+      ));
+    }
+
+    addSiAplica('temp', estadoTemperatura, 'Temperatura',
+        '${temperatura.toStringAsFixed(1)}°C');
+    addSiAplica('aire', estadoHumedadAire, 'Humedad ambiental',
+        '${humedadAire.toStringAsFixed(0)}%');
+    addSiAplica('suelo', estadoHumedadSuelo, 'Humedad del suelo',
+        '${humedadSuelo.toStringAsFixed(0)}%');
+
+    if (items.isEmpty) {
+      items.add(AlertItem(
+        id: 'normal-${timestamp.millisecondsSinceEpoch}',
+        mensaje: 'Condiciones óptimas en todos los sensores',
+        nivel: EstadoNivel.normal,
+        fecha: timestamp,
+        activa: false,
+      ));
+    }
+
+    return items;
+  }
+}

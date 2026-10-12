@@ -22,3 +22,14 @@ subprojects {
 tasks.register<Delete>("clean") {
     delete(rootProject.layout.buildDirectory)
 }
+
+plugins {
+  // ...
+
+  // Add the dependency for the Google services Gradle plugin
+  id("com.google.gms.google-services") version "4.5.0" apply false
+
+}
+// Note: Keep plugin/dependency configuration in the module-level Gradle files.
+// The Google Services plugin is declared above with `apply false` so modules
+// can opt-in. Avoid multiple `plugins {}` blocks in this top-level script.
