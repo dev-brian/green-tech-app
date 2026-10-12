@@ -2,9 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../services/app_status.dart';
 import '../services/firebase_service.dart';
+import '../services/session_storage.dart';
 import '../utils/colors.dart';
 import '../utils/neumorphism.dart';
+import '../utils/validators.dart';
 import 'dashboard_screen.dart';
+import 'forgot_password_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -24,6 +27,19 @@ class _LoginScreenState extends State<LoginScreen> {
   String? _errorMsg;
 
   @override
+  void initState() {
+    super.initState();
+    _prefillLastEmail();
+  }
+
+  /// Prellena el email con el último usado en este dispositivo (Task 1.3).
+  Future<void> _prefillLastEmail() async {
+    final last = await SessionStorage.getLastEmail();
+    if (!mounted || last == null || _emailCtrl.text.isNotEmpty) return;
+    _emailCtrl.text = last;
+  }
+
+  @override
   void dispose() {
     _emailCtrl.dispose();
     _passCtrl.dispose();
@@ -32,6 +48,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
+    FocusScope.of(context).unfocus();
     setState(() {
       _loading = true;
       _errorMsg = null;
@@ -49,11 +66,47 @@ class _LoginScreenState extends State<LoginScreen> {
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(builder: (_) => const DashboardScreen()),
       );
-    } catch (e) {
-      setState(() => _errorMsg = e.toString().replaceFirst('Exception: ', ''));
+    } on AuthException catch (e) {
+      if (mounted) setState(() => _errorMsg = e.message);
+    } catch (_) {
+      if (mounted) {
+        setState(() =>
+            _errorMsg = 'Ocurrió un error inesperado. Inténtalo de nuevo');
+      }
     } finally {
       if (mounted) setState(() => _loading = false);
     }
+  }
+
+  Future<void> _signInWithGoogle() async {
+    FocusScope.of(context).unfocus();
+    setState(() {
+      _loading = true;
+      _errorMsg = null;
+    });
+    try {
+      final ok = await FirebaseService.instance.signInWithGoogle();
+      if (!ok || !mounted) return; // el usuario cerró el selector de cuentas
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => const DashboardScreen()),
+      );
+    } on AuthException catch (e) {
+      if (mounted) setState(() => _errorMsg = e.message);
+    } catch (_) {
+      if (mounted) {
+        setState(() => _errorMsg =
+            'No se pudo iniciar sesión con Google. Inténtalo de nuevo');
+      }
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  void _openForgotPassword() {
+    Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) =>
+          ForgotPasswordScreen(initialEmail: _emailCtrl.text.trim()),
+    ));
   }
 
   void _continueWithoutAccount() {
@@ -187,8 +240,11 @@ class _LoginScreenState extends State<LoginScreen> {
                             ],
                             const SizedBox(height: 32),
                             TextFormField(
+                              key: const Key('login_email'),
                               controller: _emailCtrl,
                               keyboardType: TextInputType.emailAddress,
+                              textInputAction: TextInputAction.next,
+                              autofillHints: const [AutofillHints.email],
                               style: GoogleFonts.inter(
                                   fontSize: 14, color: textColor),
                               decoration: InputDecoration(
@@ -208,17 +264,18 @@ class _LoginScreenState extends State<LoginScreen> {
                                   borderSide: BorderSide.none,
                                 ),
                               ),
-                              validator: (v) {
-                                if (v == null || v.isEmpty)
-                                  return 'Ingresa tu email';
-                                if (!v.contains('@')) return 'Email inválido';
-                                return null;
-                              },
+                              validator: Validators.email,
                             ),
                             const SizedBox(height: 16),
                             TextFormField(
+                              key: const Key('login_password'),
                               controller: _passCtrl,
                               obscureText: _obscure,
+                              textInputAction: TextInputAction.done,
+                              autofillHints: const [AutofillHints.password],
+                              onFieldSubmitted: (_) {
+                                if (!_loading) _submit();
+                              },
                               style: GoogleFonts.inter(
                                   fontSize: 14, color: textColor),
                               decoration: InputDecoration(
@@ -248,13 +305,24 @@ class _LoginScreenState extends State<LoginScreen> {
                                   borderSide: BorderSide.none,
                                 ),
                               ),
-                              validator: (v) {
-                                if (v == null || v.isEmpty)
-                                  return 'Ingresa tu contraseña';
-                                if (v.length < 6) return 'Mínimo 6 caracteres';
-                                return null;
-                              },
+                              validator: Validators.password,
                             ),
+                            if (!_isRegisterMode)
+                              Align(
+                                alignment: Alignment.centerRight,
+                                child: TextButton(
+                                  onPressed:
+                                      _loading ? null : _openForgotPassword,
+                                  child: Text(
+                                    '¿Olvidaste tu contraseña?',
+                                    style: GoogleFonts.inter(
+                                      fontSize: 13,
+                                      color: AppColors.secondary,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                              ),
                             if (_errorMsg != null) ...[
                               const SizedBox(height: 14),
                               Text(
@@ -289,31 +357,8 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                             const SizedBox(height: 12),
                             OutlinedButton.icon(
-                              onPressed: _loading
-                                  ? null
-                                  : () async {
-                                      setState(() {
-                                        _loading = true;
-                                        _errorMsg = null;
-                                      });
-                                      try {
-                                        await FirebaseService.instance
-                                            .signInWithGoogle();
-                                        if (!mounted) return;
-                                        Navigator.of(context).pushReplacement(
-                                          MaterialPageRoute(
-                                              builder: (_) =>
-                                                  const DashboardScreen()),
-                                        );
-                                      } catch (e) {
-                                        setState(() => _errorMsg = e
-                                            .toString()
-                                            .replaceFirst('Exception: ', ''));
-                                      } finally {
-                                        if (mounted)
-                                          setState(() => _loading = false);
-                                      }
-                                    },
+                              key: const Key('login_google'),
+                              onPressed: _loading ? null : _signInWithGoogle,
                               icon: const Icon(Icons.login,
                                   color: AppColors.secondary),
                               label: Text(
@@ -337,8 +382,10 @@ class _LoginScreenState extends State<LoginScreen> {
                             TextButton(
                               onPressed: _loading
                                   ? null
-                                  : () => setState(
-                                      () => _isRegisterMode = !_isRegisterMode),
+                                  : () => setState(() {
+                                        _isRegisterMode = !_isRegisterMode;
+                                        _errorMsg = null;
+                                      }),
                               child: Text(
                                 _isRegisterMode
                                     ? '¿Ya tienes cuenta? Inicia sesión'
@@ -350,9 +397,9 @@ class _LoginScreenState extends State<LoginScreen> {
                                 ),
                               ),
                             ),
-                            // TODO(firebase): quita este acceso directo cuando
-                            // Firebase Auth ya esté conectado de verdad — por
-                            // ahora deja probar el resto de la app sin login.
+                            // Acceso directo solo cuando Firebase no está
+                            // disponible (ver `firebaseReady` en main.dart).
+                            if (!firebaseReady) ...[
                             const SizedBox(height: 4),
                             TextButton(
                               onPressed: _loading ? null : _continueWithoutAccount,
@@ -367,6 +414,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                 ),
                               ),
                             ),
+                            ],
                           ],
                         ),
                       ),

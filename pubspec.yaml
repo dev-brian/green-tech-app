@@ -30,10 +30,15 @@ dependencies:
   path_provider: ^2.0.15
 
   # Firebase (proyecto green-tech-96bb2, ver lib/firebase_options.dart)
-  firebase_core: ^3.6.0
-  firebase_auth: ^5.3.1
-  google_sign_in: ^6.1.0
-  cloud_firestore: ^5.4.4
+  firebase_core: ^4.1.0
+  firebase_auth: ^6.1.0
+  # Inicio de sesión con Google (selector de cuentas nativo de Android)
+  google_sign_in: ^7.2.0
+  # cloud_firestore 6.x es la versión compatible con firebase_core 4.x
+  cloud_firestore: ^6.0.0
+
+  # HU-M01 / Task 1.3: guarda el token de sesión cifrado (Android Keystore)
+  flutter_secure_storage: ^10.0.0
 
   # HTTP para consumir tu API / MQTT bridge de los ESP32
 

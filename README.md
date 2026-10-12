@@ -19,13 +19,31 @@ Dashboard → Detalle de sensores → Histórico → Alertas → Perfil.
    flutter run
    ```
 
-No necesitas Firebase todavía: `FirebaseService` y `ApiService` usan datos simulados
-(incluyendo el JSON de prueba que definiste) para que puedas navegar toda la app desde ya.
+`ApiService` aún usa datos simulados; la autenticación ya es real con Firebase.
+
+## 🔐 Firebase Auth (HU-M01) — ya conectado
+
+- Proyecto Firebase: `green-tech-96bb2` · App Android: `com.example.greentech_app`
+- Config: `lib/firebase_options.dart` (versionado). `android/app/google-services.json`
+  está en `.gitignore` y no es necesario para compilar: Firebase se inicializa con
+  `DefaultFirebaseOptions` y Google Sign-In con el `serverClientId` del proyecto.
+- Proveedores habilitados en la consola: **Correo electrónico/contraseña** y **Google**
+- Google en Android requiere registrar la huella SHA-1 de la llave de firma en
+  Firebase → Configuración del proyecto → Tu app Android. Cada integrante debe agregar
+  la SHA-1 de su `debug.keystore` (`cd android && ./gradlew signingReport`).
+
+| Task | Dónde |
+|---|---|
+| 1.1 UI de login y recuperación | `lib/screens/login_screen.dart`, `lib/screens/forgot_password_screen.dart` |
+| 1.2 Integración con Firebase Auth | `lib/services/firebase_service.dart` |
+| 1.3 Persistencia segura de sesión | `lib/services/secure_token_storage.dart` (ID token cifrado con Android Keystore vía `flutter_secure_storage`) |
+
+Para correrlo: `flutter clean && flutter pub get && flutter run` con un emulador/celular Android (API 23+).
+Si cambias el `applicationId` o agregas iOS/Web, regenera la config con
+`flutterfire configure --project=green-tech-96bb2`.
 
 ## 🔌 Conectar datos reales
 
-- **Firebase Auth**: corre `flutterfire configure`, descomenta las dependencias en
-  `pubspec.yaml` y los `TODO` en `lib/services/firebase_service.dart`.
 - **API / IoT (ESP32)**: en `lib/services/api_service.dart` cambia
   `useMockData = false` y define `baseUrl` con tu backend real. Ya está listo el
   paquete `http` para que solo reemplaces los métodos marcados con `TODO`.
@@ -52,8 +70,7 @@ lib/
 
 ## ✅ Próximos pasos sugeridos
 
-1. Conectar Firebase Auth real.
-2. Conectar tu API / MQTT bridge de los ESP32.
-3. Agregar notificaciones push (Firebase Cloud Messaging) para las alertas críticas.
-4. Agregar el logo real de GREEN TECH en `assets/images/` y en el Splash.
-5. Persistir preferencias de notificaciones (perfil) con `shared_preferences`.
+1. Conectar tu API / MQTT bridge de los ESP32.
+2. Agregar notificaciones push (Firebase Cloud Messaging) para las alertas críticas.
+3. Agregar el logo real de GREEN TECH en `assets/images/` y en el Splash.
+4. Persistir preferencias de notificaciones (perfil) con `shared_preferences`.
