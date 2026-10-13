@@ -1,11 +1,14 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_core/firebase_core.dart';
+// Solo importamos Firebase: firebase_core 4.x también exporta una clase
+// FirebaseService que choca con la nuestra (lib/services/firebase_service.dart).
+import 'package:firebase_core/firebase_core.dart' show Firebase;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'firebase_options.dart'; // generado por `flutterfire configure`
 import 'screens/splash_screen.dart';
 import 'services/app_status.dart';
+import 'services/firebase_service.dart';
 import 'services/notification_service.dart';
 import 'services/sensor_data_controller.dart';
 import 'utils/colors.dart';
@@ -26,6 +29,8 @@ void main() async {
       cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
     );
     firebaseReady = true;
+    // HU-M01 / Task 1.3: sincroniza el token de sesión cifrado.
+    await FirebaseService.instance.init();
   } catch (e) {
     firebaseReady = false;
     debugPrint('Firebase no está configurado todavía: $e');
