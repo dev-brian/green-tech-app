@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 // Solo importamos Firebase: firebase_core 4.x también exporta una clase
 // FirebaseService que choca con la nuestra (lib/services/firebase_service.dart).
 import 'package:firebase_core/firebase_core.dart' show Firebase;
@@ -21,6 +22,12 @@ void main() async {
   try {
     await Firebase.initializeApp(
         options: DefaultFirebaseOptions.currentPlatform);
+    // Caché local de Firestore: los streams siguen entregando la última
+    // lectura conocida cuando se cae la red en campo (Task 2.3).
+    FirebaseFirestore.instance.settings = const Settings(
+      persistenceEnabled: true,
+      cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
+    );
     firebaseReady = true;
     // HU-M01 / Task 1.3: sincroniza el token de sesión cifrado.
     await FirebaseService.instance.init();
@@ -31,6 +38,8 @@ void main() async {
 
   await AppThemeController.init();
   await SensorDataController.instance.init();
+  // Suscripción en tiempo real a los sensores (telemetria/ en Firestore).
+  SensorDataController.instance.start();
   await NotificationService.instance.init();
 
   runApp(const MyApp());

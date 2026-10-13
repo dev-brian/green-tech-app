@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 /// Estados posibles derivados de las lecturas del sensor.
 enum EstadoNivel { normal, alerta, critico }
 
@@ -10,6 +12,10 @@ class SensorReading {
   final double humedadSuelo;
   final DateTime timestamp;
 
+  /// Invernadero al que pertenece el sensor (id de `greenhouses/{id}`, el
+  /// mismo campo que usa la web en `alerts`).
+  final String? greenhouseId;
+
   SensorReading({
     required this.sensorId,
     required this.ubicacion,
@@ -17,6 +23,7 @@ class SensorReading {
     required this.humedadAire,
     required this.humedadSuelo,
     required this.timestamp,
+    this.greenhouseId,
   });
 
   factory SensorReading.fromJson(Map<String, dynamic> json) {
@@ -27,6 +34,30 @@ class SensorReading {
       humedadAire: (json['humedad_aire'] as num).toDouble(),
       humedadSuelo: (json['humedad_suelo'] as num).toDouble(),
       timestamp: DateTime.parse(json['timestamp'] as String),
+      greenhouseId: json['greenhouseId'] as String?,
+    );
+  }
+
+  /// Construye la lectura desde un documento de `telemetria/{sensorId}`.
+  ///
+  /// Es tolerante con lo que escriba el simulador: si falta `sensor_id` usa
+  /// el id del documento, y `timestamp` puede venir como [Timestamp] de
+  /// Firestore o como texto ISO 8601.
+  factory SensorReading.fromFirestore(String docId, Map<String, dynamic> data) {
+    final rawTs = data['timestamp'];
+    final DateTime ts = switch (rawTs) {
+      Timestamp t => t.toDate(),
+      String s => DateTime.tryParse(s) ?? DateTime.now(),
+      _ => DateTime.now(),
+    };
+    return SensorReading(
+      sensorId: (data['sensor_id'] as String?) ?? docId,
+      ubicacion: (data['ubicacion'] as String?) ?? '',
+      temperatura: (data['temperatura'] as num? ?? 0).toDouble(),
+      humedadAire: (data['humedad_aire'] as num? ?? 0).toDouble(),
+      humedadSuelo: (data['humedad_suelo'] as num? ?? 0).toDouble(),
+      timestamp: ts,
+      greenhouseId: data['greenhouseId'] as String?,
     );
   }
 
@@ -37,6 +68,7 @@ class SensorReading {
         'humedad_aire': humedadAire,
         'humedad_suelo': humedadSuelo,
         'timestamp': timestamp.toIso8601String(),
+        if (greenhouseId != null) 'greenhouseId': greenhouseId,
       };
 
   /// Dato de prueba tal como lo definiste en la especificación.
@@ -116,29 +148,6 @@ class ChartPoint {
   final double value;
 
   ChartPoint(this.time, this.value);
-}
-
-extension SensorReadingCopy on SensorReading {
-  /// Crea una copia con overrides puntuales — usada por el simulador de
-  /// sensores del Dashboard para "escribir" valores manuales encima del
-  /// clima real, sin perder el resto de la lectura.
-  SensorReading copyWith({
-    String? sensorId,
-    String? ubicacion,
-    double? temperatura,
-    double? humedadAire,
-    double? humedadSuelo,
-    DateTime? timestamp,
-  }) {
-    return SensorReading(
-      sensorId: sensorId ?? this.sensorId,
-      ubicacion: ubicacion ?? this.ubicacion,
-      temperatura: temperatura ?? this.temperatura,
-      humedadAire: humedadAire ?? this.humedadAire,
-      humedadSuelo: humedadSuelo ?? this.humedadSuelo,
-      timestamp: timestamp ?? this.timestamp,
-    );
-  }
 }
 
 extension SensorReadingAlerts on SensorReading {

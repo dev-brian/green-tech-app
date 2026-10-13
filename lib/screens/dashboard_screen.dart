@@ -6,9 +6,9 @@ import '../services/sensor_data_controller.dart';
 import '../utils/colors.dart';
 import '../utils/neumorphism.dart';
 import '../widgets/chart_widget.dart';
+import '../widgets/live_clock.dart';
 import '../widgets/location_picker_dialog.dart';
 import '../widgets/sensor_card.dart';
-import '../widgets/sensor_simulator_panel.dart';
 import 'alerts_screen.dart';
 import 'history_screen.dart';
 import 'profile_screen.dart';
@@ -31,14 +31,22 @@ class _DashboardScreenState extends State<DashboardScreen> {
   @override
   void initState() {
     super.initState();
-    _loadAll();
+    // Los sensores ya vienen por stream (SensorDataController.start en
+    // main.dart); aquí solo cargamos el clima y la gráfica de pronóstico.
+    _loadWeather();
   }
 
-  Future<void> _loadAll() async {
+  Future<void> _loadWeather() async {
     await _controller.loadRealWeather();
-    if (_controller.error.value == null) {
+    if (_controller.weatherError.value == null) {
       await _loadChart();
     }
+  }
+
+  /// Reintenta la suscripción a los sensores y recarga clima + gráfica.
+  Future<void> _loadAll() async {
+    await _controller.start();
+    await _loadWeather();
   }
 
   Future<void> _loadChart() async {
@@ -88,7 +96,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
 
     if (result != null && result.trim().isNotEmpty) {
-      await _loadAll();
+      await _loadWeather();
     }
   }
 
@@ -152,9 +160,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   }
 
                   if (reading == null) {
-                    return const Center(
-                      child: CircularProgressIndicator(color: AppColors.primary),
-                    );
+                    return _buildWaitingState(isDark);
                   }
 
                   return RefreshIndicator(
@@ -169,61 +175,89 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           return ListView(
                             padding: const EdgeInsets.all(18),
                             children: [
+                              ValueListenableBuilder<bool>(
+                                valueListenable: _controller.offline,
+                                builder: (context, offline, _) => offline
+                                    ? Padding(
+                                        padding:
+                                            const EdgeInsets.only(bottom: 14),
+                                        child: _buildOfflineBanner(
+                                            reading.timestamp, isDark),
+                                      )
+                                    : const SizedBox.shrink(),
+                              ),
                               if (errorMsg != null) ...[
                                 _buildInlineErrorBanner(errorMsg, isDark),
                                 const SizedBox(height: 14),
                               ],
-                              _buildHeaderSection(reading, isDark),
-                              const SizedBox(height: 24),
-                              Text(
-                                'Sensores en tiempo real',
-                                style: GoogleFonts.poppins(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w700,
-                                  color: textColor,
-                                ),
-                              ),
-                              const SizedBox(height: 12),
-                              GridView(
-                                shrinkWrap: true,
-                                physics: const NeverScrollableScrollPhysics(),
-                                gridDelegate:
-                                    SliverGridDelegateWithMaxCrossAxisExtent(
-                                  maxCrossAxisExtent: maxCrossExtent,
-                                  mainAxisSpacing: 14,
-                                  crossAxisSpacing: 14,
-                                  mainAxisExtent: 145,
-                                ),
-                                children: [
-                                  SensorCard(
-                                    label: 'Temperatura',
-                                    value: reading.temperatura.toStringAsFixed(1),
-                                    unit: '°C',
-                                    icon: Icons.thermostat,
-                                    estado: reading.estadoTemperatura,
-                                    onTap: _goToDetail,
-                                  ),
-                                  SensorCard(
-                                    label: 'Humedad ambiental',
-                                    value: reading.humedadAire.toStringAsFixed(0),
-                                    unit: '%',
-                                    icon: Icons.water_drop_outlined,
-                                    estado: reading.estadoHumedadAire,
-                                    onTap: _goToDetail,
-                                  ),
-                                  SensorCard(
-                                    label: 'Humedad del suelo',
-                                    value: reading.humedadSuelo.toStringAsFixed(0),
-                                    unit: '%',
-                                    icon: Icons.grass,
-                                    estado: reading.estadoHumedadSuelo,
-                                    onTap: _goToDetail,
-                                  ),
-                                  _buildSensorInfoCard(reading, isDark),
-                                ],
+                              // Se reconstruye cada 10 s para que "hace X"
+                              // avance y detectar si el sensor dejó de reportar.
+                              LiveClock(
+                                builder: (context, now) {
+                                  final stale = lecturaDesactualizada(
+                                      reading.timestamp, now);
+                                  return Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.stretch,
+                                    children: [
+                                    _buildHeaderSection(reading, isDark, now, stale),
+                                    const SizedBox(height: 24),
+                                    Text(
+                                      'Sensores en tiempo real',
+                                      style: GoogleFonts.poppins(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.w700,
+                                        color: textColor,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 12),
+                                    GridView(
+                                      shrinkWrap: true,
+                                      physics: const NeverScrollableScrollPhysics(),
+                                      gridDelegate:
+                                          SliverGridDelegateWithMaxCrossAxisExtent(
+                                        maxCrossAxisExtent: maxCrossExtent,
+                                        mainAxisSpacing: 14,
+                                        crossAxisSpacing: 14,
+                                        mainAxisExtent: 145,
+                                      ),
+                                      children: [
+                                        SensorCard(
+                                          label: 'Temperatura',
+                                          value: reading.temperatura.toStringAsFixed(1),
+                                          unit: '°C',
+                                          icon: Icons.thermostat,
+                                          estado: reading.estadoTemperatura,
+                                          onTap: _goToDetail,
+                                          desactualizado: stale,
+                                        ),
+                                        SensorCard(
+                                          label: 'Humedad ambiental',
+                                          value: reading.humedadAire.toStringAsFixed(0),
+                                          unit: '%',
+                                          icon: Icons.water_drop_outlined,
+                                          estado: reading.estadoHumedadAire,
+                                          onTap: _goToDetail,
+                                          desactualizado: stale,
+                                        ),
+                                        SensorCard(
+                                          label: 'Humedad del suelo',
+                                          value: reading.humedadSuelo.toStringAsFixed(0),
+                                          unit: '%',
+                                          icon: Icons.grass,
+                                          estado: reading.estadoHumedadSuelo,
+                                          onTap: _goToDetail,
+                                          desactualizado: stale,
+                                        ),
+                                        _buildSensorInfoCard(reading, isDark),
+                                      ],
+                                    ),
+                                    ],
+                                  );
+                                },
                               ),
                               const SizedBox(height: 20),
-                              SensorSimulatorPanel(reading: reading, isDark: isDark),
+                              _buildWeatherCard(isDark),
                               const SizedBox(height: 28),
                               Row(
                                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -320,7 +354,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             const Icon(Icons.cloud_off, color: AppColors.critico, size: 42),
             const SizedBox(height: 12),
             Text(
-              'No se pudo cargar el clima',
+              'No se pudieron cargar los sensores',
               style: GoogleFonts.poppins(
                 fontSize: 16,
                 fontWeight: FontWeight.w700,
@@ -344,13 +378,74 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 foregroundColor: Colors.white,
               ),
             ),
-            const SizedBox(height: 8),
-            TextButton(
-              onPressed: _changeLocation,
-              child: const Text('Cambiar ubicación'),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Firebase responde pero `telemetria/{sensorId}` aún no existe: el
+  /// simulador (o el ESP32) todavía no ha enviado ninguna lectura.
+  Widget _buildWaitingState(bool isDark) {
+    final textColor = isDark ? AppColors.darkTextPrimary : AppColors.textPrimary;
+    final subtextColor =
+        isDark ? AppColors.darkTextSecondary : AppColors.textSecondary;
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.sensors_off, color: AppColors.secondary, size: 42),
+            const SizedBox(height: 12),
+            Text(
+              'Esperando datos del sensor…',
+              style: GoogleFonts.poppins(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: textColor,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Aún no llegan lecturas de ${_controller.sensorId}. '
+              'Aparecerán aquí automáticamente.',
+              style: GoogleFonts.inter(fontSize: 13, color: subtextColor),
+              textAlign: TextAlign.center,
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  /// Sin red: Firestore sigue entregando la caché local. Se avisa para que
+  /// el productor sepa que los valores pueden no ser los actuales.
+  Widget _buildOfflineBanner(DateTime ultimaLectura, bool isDark) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.accentOrange.withValues(alpha: isDark ? 0.18 : 0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.accentOrange.withValues(alpha: 0.4)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.wifi_off, color: AppColors.accentOrange, size: 18),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'Sin conexión · mostrando los últimos datos guardados '
+              '(${DateFormat('HH:mm').format(ultimaLectura)})',
+              style: GoogleFonts.inter(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: AppColors.accentOrange,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -369,7 +464,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           const SizedBox(width: 8),
           Expanded(
             child: Text(
-              'No se pudo actualizar el clima: $message',
+              'No se pudo actualizar los sensores: $message',
               style: GoogleFonts.inter(fontSize: 12, color: AppColors.critico),
             ),
           ),
@@ -378,7 +473,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _buildHeaderSection(SensorReading reading, bool isDark) {
+  Widget _buildHeaderSection(
+      SensorReading reading, bool isDark, DateTime now, bool stale) {
     final textColor = isDark ? AppColors.darkTextPrimary : AppColors.textPrimary;
     final subtextColor = isDark ? AppColors.darkTextSecondary : AppColors.textSecondary;
 
@@ -435,21 +531,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
               runSpacing: 10,
               spacing: 10,
               children: [
-                _buildStatusChip(
-                    'Estado',
-                    AppColors.labelForEstado(reading.estadoGeneral),
-                    AppColors.forEstado(reading.estadoGeneral),
-                    isDark),
+                stale
+                    ? _buildStatusChip(
+                        'Estado', 'Sin datos recientes', subtextColor, isDark)
+                    : _buildStatusChip(
+                        'Estado',
+                        AppColors.labelForEstado(reading.estadoGeneral),
+                        AppColors.forEstado(reading.estadoGeneral),
+                        isDark),
                 _buildStatusChip(
                     'Ubicación', reading.ubicacion, AppColors.secondary, isDark),
                 _buildStatusChip(
                     'Última',
-                    DateFormat('dd/MM · HH:mm').format(reading.timestamp),
-                    subtextColor,
+                    formatHace(reading.timestamp, now),
+                    stale ? AppColors.accentOrange : subtextColor,
                     isDark),
-                if (_controller.isSimulating)
-                  _buildStatusChip(
-                      'Modo', 'Simulado', AppColors.accentOrange, isDark),
               ],
             )
           ],
@@ -490,6 +586,78 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  /// Clima exterior de la ubicación elegida (OpenWeather). Es contexto
+  /// para el productor; no se mezcla con las lecturas de los sensores.
+  Widget _buildWeatherCard(bool isDark) {
+    final textColor = isDark ? AppColors.darkTextPrimary : AppColors.textPrimary;
+    final subtextColor =
+        isDark ? AppColors.darkTextSecondary : AppColors.textSecondary;
+
+    return ValueListenableBuilder<SensorReading?>(
+      valueListenable: _controller.weather,
+      builder: (context, clima, _) {
+        return ValueListenableBuilder<String?>(
+          valueListenable: _controller.weatherError,
+          builder: (context, weatherError, __) {
+            final String detalle;
+            if (clima != null) {
+              detalle = '${clima.temperatura.toStringAsFixed(1)}°C · '
+                  'Humedad ${clima.humedadAire.toStringAsFixed(0)}%';
+            } else if (weatherError != null) {
+              detalle = 'No se pudo cargar el clima';
+            } else {
+              detalle = 'Cargando clima…';
+            }
+
+            return Container(
+              padding: const EdgeInsets.all(16),
+              decoration: NeumorphismDecoration.extruded(
+                context: context,
+                isDark: isDark,
+                borderRadius: 18,
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.wb_cloudy_outlined,
+                      color: AppColors.secondary, size: 28),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Clima en ${_controller.currentLocation}',
+                          style: GoogleFonts.poppins(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                            color: textColor,
+                          ),
+                        ),
+                        Text(
+                          detalle,
+                          style: GoogleFonts.inter(
+                            fontSize: 13,
+                            color: weatherError != null && clima == null
+                                ? AppColors.critico
+                                : subtextColor,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: _changeLocation,
+                    child: const Text('Cambiar'),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
     );
   }
 

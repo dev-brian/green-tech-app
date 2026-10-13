@@ -4,13 +4,12 @@ import '../models/sensor_model.dart';
 import '../services/sensor_data_controller.dart';
 import '../utils/colors.dart';
 import '../widgets/alert_tile.dart';
-import '../widgets/location_picker_dialog.dart';
 
 /// Pantalla de Alertas: ya NO calcula sus propios umbrales. Lee las
 /// alertas directamente de [SensorDataController], que las genera con las
-/// mismas reglas de semáforo que usa el Dashboard (sensor_model.dart), y
-/// que incluyen tanto el clima real como cualquier simulación activa con
-/// los sliders. Así el Dashboard y las Alertas siempre están de acuerdo.
+/// mismas reglas de semáforo que usa el Dashboard (sensor_model.dart) a
+/// partir de la lectura en tiempo real de los sensores. Así el Dashboard y
+/// las Alertas siempre están de acuerdo.
 class AlertsScreen extends StatefulWidget {
   const AlertsScreen({super.key});
 
@@ -21,18 +20,6 @@ class AlertsScreen extends StatefulWidget {
 class _AlertsScreenState extends State<AlertsScreen> {
   final SensorDataController _controller = SensorDataController.instance;
   bool _soloActivas = false;
-
-  Future<void> _changeLocation() async {
-    final result = await showLocationPicker(
-      context: context,
-      api: _controller.api,
-      initialLocation: _controller.currentLocation,
-    );
-
-    if (result != null && result.trim().isNotEmpty) {
-      await _controller.loadRealWeather(location: result);
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -59,16 +46,11 @@ class _AlertsScreenState extends State<AlertsScreen> {
             ),
             onPressed: () => AppThemeController.toggleTheme(),
           ),
-          IconButton(
-            icon: const Icon(Icons.location_on_outlined),
-            tooltip: 'Cambiar ubicación',
-            onPressed: _changeLocation,
-          ),
           ValueListenableBuilder<bool>(
             valueListenable: _controller.loading,
             builder: (context, loading, _) => IconButton(
               icon: const Icon(Icons.refresh),
-              onPressed: loading ? null : () => _controller.loadRealWeather(),
+              onPressed: loading ? null : () => _controller.start(),
             ),
           ),
         ],
@@ -144,7 +126,7 @@ class _AlertsScreenState extends State<AlertsScreen> {
                                 ),
                               )
                             : RefreshIndicator(
-                                onRefresh: () => _controller.loadRealWeather(),
+                                onRefresh: () => _controller.start(),
                                 child: ListView.builder(
                                   padding: const EdgeInsets.symmetric(
                                       horizontal: 16),
