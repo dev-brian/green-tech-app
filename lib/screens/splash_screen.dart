@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../core/di.dart';
 import '../services/firebase_service.dart';
 import '../utils/colors.dart';
 import 'dashboard_screen.dart';
@@ -31,7 +32,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     // Espera la animación y, en paralelo, que Firebase restaure la sesión.
     final results = await Future.wait<Object?>([
       Future.delayed(const Duration(milliseconds: 2200)),
-      FirebaseService.instance.restoreSession(),
+      sl<FirebaseService>().restoreSession(),
     ]);
     if (!mounted) return;
     final loggedIn = results[1] != null;

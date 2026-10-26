@@ -19,21 +19,15 @@ import 'telemetry_repository.dart';
 /// Dashboard, Detalle de sensor y Alertas leen todos de aquí, así que
 /// siempre están sincronizados entre sí.
 class SensorDataController {
-  SensorDataController._internal({
-    TelemetryRepository? repository,
+  /// Las dependencias llegan por el constructor (inyección de dependencias):
+  /// en la app las entrega `core/di.dart` y en las pruebas se pasa un
+  /// repositorio falso, sin tocar Firebase.
+  SensorDataController({
+    required TelemetryRepository repository,
+    NotificationService? notifications,
     this.offlineDelay = const Duration(seconds: 3),
-  }) : _repository = repository ?? FirestoreTelemetryRepository();
-  static final SensorDataController instance =
-      SensorDataController._internal();
-
-  /// Instancia aislada para pruebas, con un repositorio falso.
-  @visibleForTesting
-  factory SensorDataController.forTesting(
-    TelemetryRepository repository, {
-    Duration offlineDelay = Duration.zero,
-  }) =>
-      SensorDataController._internal(
-          repository: repository, offlineDelay: offlineDelay);
+  })  : _repository = repository,
+        _notifications = notifications ?? NotificationService.instance;
 
   /// Cuánto tiempo seguido deben llegar datos solo de caché antes de
   /// avisar "sin conexión". Al abrir la app Firestore suele emitir primero
@@ -45,6 +39,7 @@ class SensorDataController {
 
   final ApiService api = ApiService();
   final TelemetryRepository _repository;
+  final NotificationService _notifications;
 
   // --- Sensores (Firestore) ---
   final ValueNotifier<SensorReading?> currentReading = ValueNotifier(null);
@@ -250,7 +245,7 @@ class SensorDataController {
           _ => true,
         };
         if (permitido) {
-          NotificationService.instance.showAlert(alerta);
+          _notifications.showAlert(alerta);
         }
       }
     }

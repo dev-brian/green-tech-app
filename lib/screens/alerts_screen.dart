@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../core/di.dart';
 import '../models/sensor_model.dart';
 import '../services/sensor_data_controller.dart';
 import '../utils/colors.dart';
@@ -18,7 +19,7 @@ class AlertsScreen extends StatefulWidget {
 }
 
 class _AlertsScreenState extends State<AlertsScreen> {
-  final SensorDataController _controller = SensorDataController.instance;
+  final SensorDataController _controller = sl<SensorDataController>();
   bool _soloActivas = false;
 
   @override

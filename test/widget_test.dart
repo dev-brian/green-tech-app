@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:greentech_app/core/di.dart';
 import 'package:greentech_app/main.dart';
 import 'package:greentech_app/screens/forgot_password_screen.dart';
 import 'package:greentech_app/screens/login_screen.dart';
@@ -11,7 +12,13 @@ import 'package:greentech_app/utils/validators.dart';
 Widget _wrap(Widget child) => MaterialApp(home: child);
 
 void main() {
-  setUp(() => SharedPreferences.setMockInitialValues({}));
+  setUp(() async {
+    SharedPreferences.setMockInitialValues({});
+    // Las pantallas piden sus servicios a `sl`; se registran perezosos, así
+    // que nada toca Firebase hasta que una prueba lo use.
+    await sl.reset();
+    setupDependencies();
+  });
 
   group('Validators', () {
     test('email', () {

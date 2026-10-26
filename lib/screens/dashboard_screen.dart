@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
+import '../core/di.dart';
 import '../models/sensor_model.dart';
 import '../services/sensor_data_controller.dart';
 import '../utils/colors.dart';
@@ -22,7 +23,7 @@ class DashboardScreen extends StatefulWidget {
 }
 
 class _DashboardScreenState extends State<DashboardScreen> {
-  final SensorDataController _controller = SensorDataController.instance;
+  final SensorDataController _controller = sl<SensorDataController>();
 
   List<ChartPoint> _chartPoints = [];
   bool _chartLoading = false;

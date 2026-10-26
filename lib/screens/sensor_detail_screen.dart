@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../core/di.dart';
 import '../models/sensor_model.dart';
 import '../services/sensor_data_controller.dart';
 import '../utils/colors.dart';
@@ -17,7 +18,7 @@ class SensorDetailScreen extends StatefulWidget {
 }
 
 class _SensorDetailScreenState extends State<SensorDetailScreen> {
-  final SensorDataController _controller = SensorDataController.instance;
+  final SensorDataController _controller = sl<SensorDataController>();
 
   @override
   Widget build(BuildContext context) {

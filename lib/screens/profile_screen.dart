@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../core/di.dart';
 import '../services/firebase_service.dart';
 import '../services/sensor_data_controller.dart';
 import '../utils/colors.dart';
@@ -20,7 +21,7 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  final SensorDataController _controller = SensorDataController.instance;
+  final SensorDataController _controller = sl<SensorDataController>();
 
   String? _imagePath;
 
@@ -70,7 +71,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _signOut() async {
-    await FirebaseService.instance.signOut();
+    await sl<FirebaseService>().signOut();
     if (!mounted) return;
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(builder: (_) => const LoginScreen()),
@@ -82,7 +83,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final email =
-        FirebaseService.instance.currentUserEmail ?? 'usuario@greentech.com';
+        sl<FirebaseService>().currentUserEmail ?? 'usuario@greentech.com';
 
     final textColor = isDark ? AppColors.darkTextPrimary : AppColors.textPrimary;
     final subtextColor = isDark ? AppColors.darkTextSecondary : AppColors.textSecondary;

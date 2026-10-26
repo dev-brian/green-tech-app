@@ -34,7 +34,7 @@ void main() {
     SharedPreferences.setMockInitialValues({});
     firebaseReady = true;
     repo = _FakeRepository();
-    sut = SensorDataController.forTesting(repo);
+    sut = SensorDataController(repository: repo, offlineDelay: Duration.zero);
   });
 
   tearDown(() async {
@@ -105,8 +105,8 @@ void main() {
     });
 
     test('no parpadea si el servidor responde antes del margen', () async {
-      final lento = SensorDataController.forTesting(repo,
-          offlineDelay: const Duration(milliseconds: 200));
+      final lento = SensorDataController(
+          repository: repo, offlineDelay: const Duration(milliseconds: 200));
       await lento.start();
 
       repo.controller.add(TelemetrySnapshot(reading: _lectura(), fromCache: true));
@@ -131,7 +131,8 @@ void main() {
       expect(guardada['temperatura'], 27.5);
 
       // Nueva instancia (app reabierta) sin red: aún no llega ningún snapshot.
-      final reabierta = SensorDataController.forTesting(_FakeRepository());
+      final reabierta = SensorDataController(
+          repository: _FakeRepository(), offlineDelay: Duration.zero);
       await reabierta.start();
       expect(reabierta.currentReading.value?.temperatura, 27.5);
       expect(reabierta.alerts.value, isNotEmpty);

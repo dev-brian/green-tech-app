@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../core/di.dart';
 import '../services/firebase_service.dart';
 import '../utils/colors.dart';
 import '../utils/validators.dart';
@@ -36,7 +37,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       _errorMsg = null;
     });
     try {
-      await FirebaseService.instance
+      await sl<FirebaseService>()
           .sendPasswordResetEmail(email: _emailCtrl.text.trim());
       if (!mounted) return;
       setState(() => _sent = true);

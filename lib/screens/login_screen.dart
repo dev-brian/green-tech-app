@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../core/di.dart';
 import '../services/app_status.dart';
 import '../services/firebase_service.dart';
 import '../services/session_storage.dart';
@@ -56,10 +57,10 @@ class _LoginScreenState extends State<LoginScreen> {
 
     try {
       if (_isRegisterMode) {
-        await FirebaseService.instance
+        await sl<FirebaseService>()
             .signUp(email: _emailCtrl.text.trim(), password: _passCtrl.text);
       } else {
-        await FirebaseService.instance
+        await sl<FirebaseService>()
             .signIn(email: _emailCtrl.text.trim(), password: _passCtrl.text);
       }
       if (!mounted) return;
@@ -85,7 +86,7 @@ class _LoginScreenState extends State<LoginScreen> {
       _errorMsg = null;
     });
     try {
-      final ok = await FirebaseService.instance.signInWithGoogle();
+      final ok = await sl<FirebaseService>().signInWithGoogle();
       if (!ok || !mounted) return; // el usuario cerró el selector de cuentas
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(builder: (_) => const DashboardScreen()),
