@@ -7,7 +7,6 @@ import '../adapters/zone_status_adapter.dart';
 import '../models/sensor_model.dart';
 import '../config/variable_config.dart';
 import '../models/zone_status.dart';
-import 'api_service.dart';
 import 'app_status.dart';
 import 'mock_zone_status_source.dart';
 import 'notification_service.dart';
@@ -18,10 +17,8 @@ import 'zone_status_source.dart';
 /// Las zonas llegan en tiempo real desde un [ZoneStatusSource]: por ahora
 /// [MockZoneStatusSource] (datos de prueba); para usar Firestore basta con
 /// pasar [FirestoreZoneStatusSource]. Los niveles (semáforo) los calcula el
-/// backend; aquí solo se leen. Por separado se mantiene el clima de la
-/// ubicación elegida (OpenWeather vía [ApiService]) en [weather].
-/// Dashboard, Detalle y Alertas leen todos de aquí, así que siempre están
-/// sincronizados entre sí.
+/// backend; aquí solo se leen. Dashboard, Detalle y Alertas leen todos de
+/// aquí, así que siempre están sincronizados entre sí.
 class SensorDataController {
   SensorDataController._internal({
     ZoneStatusSource? source,
@@ -48,7 +45,6 @@ class SensorDataController {
   /// Id de `greenhouses/{id}`, el mismo que usa la web.
   static const String defaultGreenhouseId = 'axtR6p9ocsE0L79H5wbN';
 
-  final ApiService api = ApiService();
   final ZoneStatusSource source;
 
   // --- Zonas del invernadero ---
@@ -63,11 +59,6 @@ class SensorDataController {
   /// true cuando lo que se muestra viene de la caché local porque no hay
   /// conexión con Firestore (señal típica en campo / red rural).
   final ValueNotifier<bool> offline = ValueNotifier(false);
-
-  // --- Clima de la ubicación (OpenWeather) ---
-  final ValueNotifier<CurrentWeather?> weather = ValueNotifier(null);
-  final ValueNotifier<bool> weatherLoading = ValueNotifier(false);
-  final ValueNotifier<String?> weatherError = ValueNotifier(null);
 
   StreamSubscription<ZoneStatusSnapshot>? _subscription;
   Timer? _offlineTimer;
@@ -102,8 +93,6 @@ class SensorDataController {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_notifKey(v), value);
   }
-
-  String get currentLocation => api.currentLocation;
 
   String get greenhouseId => _greenhouseId;
 
@@ -216,32 +205,11 @@ class SensorDataController {
     }
   }
 
-  /// Re-suscribe los sensores y recarga el clima de la ubicación.
-  Future<void> refresh() async {
-    await Future.wait([start(), loadRealWeather()]);
-  }
-
   Future<void> stop() async {
     _offlineTimer?.cancel();
     _offlineTimer = null;
     await _subscription?.cancel();
     _subscription = null;
-  }
-
-  /// Trae el clima real para [location] (o la ubicación ya seleccionada).
-  Future<void> loadRealWeather({String? location}) async {
-    weatherLoading.value = true;
-    weatherError.value = null;
-    if (location != null && location.trim().isNotEmpty) {
-      api.setLocation(location.trim());
-    }
-    try {
-      weather.value = await api.getCurrentWeather();
-    } catch (e) {
-      weatherError.value = e.toString().replaceFirst('Exception: ', '');
-    } finally {
-      weatherLoading.value = false;
-    }
   }
 
   /// Una alerta por cada variable que el backend no reporta como `ok`, en

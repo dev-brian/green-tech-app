@@ -4,7 +4,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 // Solo importamos Firebase: firebase_core 4.x también exporta una clase
 // FirebaseService que choca con la nuestra (lib/services/firebase_service.dart).
 import 'package:firebase_core/firebase_core.dart' show Firebase;
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'firebase_options.dart'; // generado por `flutterfire configure`
 import 'screens/splash_screen.dart';
 import 'services/app_status.dart';
@@ -15,7 +14,6 @@ import 'utils/colors.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await dotenv.load();
 
   // Si Firebase falla (p. ej. plataforma sin configurar), la app sigue en
   // modo local y las pantallas lo consultan con `firebaseReady`.

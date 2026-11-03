@@ -19,11 +19,3 @@ class AlertItem {
     required this.activa,
   });
 }
-
-/// Punto simple para graficar series de tiempo (temperatura/humedad).
-class ChartPoint {
-  final DateTime time;
-  final double value;
-
-  ChartPoint(this.time, this.value);
-}

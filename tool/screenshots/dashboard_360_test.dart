@@ -25,7 +25,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 // ignore: implementation_imports
 import 'package:google_fonts/src/google_fonts_base.dart' as google_fonts;
 import 'package:greentech_app/screens/dashboard_screen.dart';
-import 'package:greentech_app/services/api_service.dart';
 import 'package:greentech_app/services/mock_zone_status_source.dart';
 import 'package:greentech_app/services/sensor_data_controller.dart';
 import 'package:greentech_app/utils/colors.dart';
@@ -151,13 +150,6 @@ void main() {
       ),
     ));
     await render(_height);
-    controller.weatherError.value = null;
-    controller.weather.value = CurrentWeather(
-      location: 'Tlaxcala',
-      temperature: 19.4,
-      humidity: 58,
-      timestamp: DateTime.now(),
-    );
     // google_fonts carga sus fuentes de forma asíncrona: hay que esperarlas
     // con el reloj real antes de la primera captura.
     await tester.runAsync(GoogleFonts.pendingFonts);
