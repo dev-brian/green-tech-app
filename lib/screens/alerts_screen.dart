@@ -6,10 +6,9 @@ import '../utils/colors.dart';
 import '../widgets/alert_tile.dart';
 
 /// Pantalla de Alertas: ya NO calcula sus propios umbrales. Lee las
-/// alertas directamente de [SensorDataController], que las genera con las
-/// mismas reglas de semáforo que usa el Dashboard (sensor_model.dart) a
-/// partir de la lectura en tiempo real de los sensores. Así el Dashboard y
-/// las Alertas siempre están de acuerdo.
+/// alertas directamente de [SensorDataController], que las genera a partir
+/// del mismo `level` que manda el backend y que pinta el Dashboard. Así el
+/// Dashboard y las Alertas siempre están de acuerdo.
 class AlertsScreen extends StatefulWidget {
   const AlertsScreen({super.key});
 

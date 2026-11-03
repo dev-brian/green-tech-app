@@ -1,14 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../models/sensor_model.dart';
+import '../models/zone_status.dart';
 import '../services/sensor_data_controller.dart';
 import '../utils/colors.dart';
 import '../utils/neumorphism.dart';
 import '../widgets/live_clock.dart';
+import '../widgets/sensor_card.dart';
 
-/// Muestra la misma lectura activa que el Dashboard (stream de Firestore)
-/// — no hace su propio fetch por separado, para que nunca se desincronice
-/// de lo que se ve en la pantalla principal.
+/// Muestra la misma zona activa que el Dashboard — no hace su propio fetch
+/// por separado, para que nunca se desincronice de lo que se ve en la
+/// pantalla principal.
 class SensorDetailScreen extends StatefulWidget {
   const SensorDetailScreen({super.key});
 
@@ -30,7 +32,7 @@ class _SensorDetailScreenState extends State<SensorDetailScreen> {
       backgroundColor: bgColor,
       appBar: AppBar(
         title: Text(
-          'Detalle del Sensor',
+          'Detalle de la Zona',
           style: GoogleFonts.poppins(fontWeight: FontWeight.w700),
         ),
         backgroundColor: AppColors.secondary,
@@ -44,8 +46,8 @@ class _SensorDetailScreenState extends State<SensorDetailScreen> {
           ),
         ],
       ),
-      body: ValueListenableBuilder<SensorReading?>(
-        valueListenable: _controller.currentReading,
+      body: ValueListenableBuilder<ZoneStatus?>(
+        valueListenable: _controller.currentZone,
         builder: (context, r, _) {
           if (r == null) {
             return const Center(
@@ -90,14 +92,14 @@ class _SensorDetailScreenState extends State<SensorDetailScreen> {
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
                                       Text(
-                                        'ID del sensor',
+                                        'Zona',
                                         style: GoogleFonts.inter(
                                           fontSize: 13,
                                           color: subtextColor,
                                         ),
                                       ),
                                       Text(
-                                        r.sensorId,
+                                        r.zoneId,
                                         style: GoogleFonts.poppins(
                                           fontWeight: FontWeight.w700,
                                           fontSize: 18,
@@ -111,9 +113,9 @@ class _SensorDetailScreenState extends State<SensorDetailScreen> {
                             ),
                             const Divider(height: 28),
                             _infoRow(
-                              Icons.place_outlined,
-                              'Ubicación',
-                              r.ubicacion,
+                              Icons.eco_outlined,
+                              'Estado',
+                              r.mensajeEstado,
                               isDark,
                             ),
                             const SizedBox(height: 12),
@@ -139,27 +141,14 @@ class _SensorDetailScreenState extends State<SensorDetailScreen> {
                       ),
                     ),
                     const SizedBox(height: 14),
-                    _dataTile(
-                      'Temperatura',
-                      '${r.temperatura.toStringAsFixed(1)}°C',
-                      r.estadoTemperatura,
-                      Icons.thermostat,
-                      isDark,
-                    ),
-                    _dataTile(
-                      'Humedad del aire',
-                      '${r.humedadAire.toStringAsFixed(0)}%',
-                      r.estadoHumedadAire,
-                      Icons.water_drop_outlined,
-                      isDark,
-                    ),
-                    _dataTile(
-                      'Humedad del suelo',
-                      '${r.humedadSuelo.toStringAsFixed(0)}%',
-                      r.estadoHumedadSuelo,
-                      Icons.grass,
-                      isDark,
-                    ),
+                    for (final v in HydroVariable.values)
+                      _dataTile(
+                        v.label,
+                        r[v] == null ? 'Sin datos' : v.display(r[v]!.value),
+                        r[v]?.level,
+                        iconForVariable(v),
+                        isDark,
+                      ),
                   ],
                 ),
               ),
@@ -197,10 +186,13 @@ class _SensorDetailScreenState extends State<SensorDetailScreen> {
     );
   }
 
+  /// [estado] es null cuando la variable no llegó: se pinta en gris.
   Widget _dataTile(
-      String label, String value, EstadoNivel estado, IconData icon, bool isDark) {
-    final color = AppColors.forEstado(estado);
+      String label, String value, EstadoNivel? estado, IconData icon, bool isDark) {
     final textColor = isDark ? AppColors.darkTextPrimary : AppColors.textPrimary;
+    final color = estado == null
+        ? (isDark ? AppColors.darkTextSecondary : AppColors.textSecondary)
+        : AppColors.forEstado(estado);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
