@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../models/actuator_model.dart';
 import '../models/sensor_model.dart';
 import 'api_service.dart';
 import 'app_status.dart';
@@ -56,12 +57,17 @@ class SensorDataController {
   /// conexión con Firestore (señal típica en campo / red rural).
   final ValueNotifier<bool> offline = ValueNotifier(false);
 
+  // --- Equipos / actuadores (Firestore, solo lectura) ---
+  final ValueNotifier<List<Actuador>> actuators = ValueNotifier(const []);
+  final ValueNotifier<String?> actuatorsError = ValueNotifier(null);
+
   // --- Clima de la ubicación (OpenWeather) ---
   final ValueNotifier<SensorReading?> weather = ValueNotifier(null);
   final ValueNotifier<bool> weatherLoading = ValueNotifier(false);
   final ValueNotifier<String?> weatherError = ValueNotifier(null);
 
   StreamSubscription<TelemetrySnapshot>? _subscription;
+  StreamSubscription<List<Actuador>>? _actuatorSubscription;
   Timer? _offlineTimer;
   String _sensorId = defaultSensorId;
 
@@ -125,7 +131,10 @@ class SensorDataController {
     _sensorId = sensorId ?? _sensorId;
     await _subscription?.cancel();
     _subscription = null;
+    await _actuatorSubscription?.cancel();
+    _actuatorSubscription = null;
     error.value = null;
+    actuatorsError.value = null;
 
     // Arranque en frío sin red: pinta la última lectura guardada mientras
     // llega el primer snapshot (o si nunca llega).
@@ -149,6 +158,15 @@ class SensorDataController {
       onError: (Object e) {
         loading.value = false;
         error.value = 'No se pudo leer los sensores: $e';
+      },
+    );
+    _actuatorSubscription = _repository.watchActuators(_sensorId).listen(
+      (lista) {
+        actuatorsError.value = null;
+        actuators.value = lista;
+      },
+      onError: (Object e) {
+        actuatorsError.value = 'No se pudo leer el estado de los equipos: $e';
       },
     );
   }
@@ -213,6 +231,8 @@ class SensorDataController {
     _offlineTimer = null;
     await _subscription?.cancel();
     _subscription = null;
+    await _actuatorSubscription?.cancel();
+    _actuatorSubscription = null;
   }
 
   /// Trae el clima real para [location] (o la ubicación ya seleccionada).

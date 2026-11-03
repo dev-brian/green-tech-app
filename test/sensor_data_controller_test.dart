@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:greentech_app/models/actuator_model.dart';
 import 'package:greentech_app/models/sensor_model.dart';
 import 'package:greentech_app/services/app_status.dart';
 import 'package:greentech_app/services/sensor_data_controller.dart';
@@ -12,9 +13,14 @@ import 'package:greentech_app/services/telemetry_repository.dart';
 /// es lo que "llega" de Firestore.
 class _FakeRepository implements TelemetryRepository {
   final controller = StreamController<TelemetrySnapshot>.broadcast();
+  final actuatorController = StreamController<List<Actuador>>.broadcast();
 
   @override
   Stream<TelemetrySnapshot> watchReading(String sensorId) => controller.stream;
+
+  @override
+  Stream<List<Actuador>> watchActuators(String sensorId) =>
+      actuatorController.stream;
 }
 
 SensorReading _lectura({double temperatura = 24.5}) => SensorReading(
@@ -40,6 +46,7 @@ void main() {
   tearDown(() async {
     await sut.stop();
     await repo.controller.close();
+    await repo.actuatorController.close();
   });
 
   test('publica cada lectura del stream y genera sus alertas', () async {
@@ -136,6 +143,34 @@ void main() {
       expect(reabierta.currentReading.value?.temperatura, 27.5);
       expect(reabierta.alerts.value, isNotEmpty);
       await reabierta.stop();
+    });
+  });
+
+  group('equipos (HU-M03)', () {
+    test('publica la lista de actuadores del stream', () async {
+      await sut.start();
+      repo.actuatorController.add(const [
+        Actuador(
+            id: 'bomba-01',
+            nombre: 'Bomba de riego',
+            tipo: TipoActuador.bomba,
+            encendido: true),
+      ]);
+      await Future<void>.delayed(Duration.zero);
+
+      expect(sut.actuators.value.single.encendido, isTrue);
+      expect(sut.actuatorsError.value, isNull);
+    });
+
+    test('un error de actuadores no afecta a los sensores', () async {
+      await sut.start();
+      repo.actuatorController.addError(Exception('permission-denied'));
+      repo.controller.add(TelemetrySnapshot(reading: _lectura(), fromCache: false));
+      await Future<void>.delayed(Duration.zero);
+
+      expect(sut.actuatorsError.value, contains('permission-denied'));
+      expect(sut.error.value, isNull);
+      expect(sut.currentReading.value, isNotNull);
     });
   });
 }

@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
+import '../models/actuator_model.dart';
 import '../models/sensor_model.dart';
 import '../services/sensor_data_controller.dart';
 import '../utils/colors.dart';
 import '../utils/neumorphism.dart';
+import '../widgets/actuator_tile.dart';
 import '../widgets/chart_widget.dart';
 import '../widgets/live_clock.dart';
 import '../widgets/location_picker_dialog.dart';
@@ -252,6 +254,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                         _buildSensorInfoCard(reading, isDark),
                                       ],
                                     ),
+                                    const SizedBox(height: 24),
+                                    _buildActuatorsSection(isDark, now),
                                     ],
                                   );
                                 },
@@ -586,6 +590,74 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  /// Estado virtual de los equipos (HU-M03), en tiempo real y solo lectura.
+  Widget _buildActuatorsSection(bool isDark, DateTime now) {
+    final textColor = isDark ? AppColors.darkTextPrimary : AppColors.textPrimary;
+    final subtextColor =
+        isDark ? AppColors.darkTextSecondary : AppColors.textSecondary;
+
+    return ValueListenableBuilder<List<Actuador>>(
+      valueListenable: _controller.actuators,
+      builder: (context, equipos, _) {
+        return ValueListenableBuilder<String?>(
+          valueListenable: _controller.actuatorsError,
+          builder: (context, actuatorsError, __) {
+            final Widget contenido;
+            if (actuatorsError != null && equipos.isEmpty) {
+              contenido = Text(
+                actuatorsError,
+                style: GoogleFonts.inter(fontSize: 13, color: AppColors.critico),
+              );
+            } else if (equipos.isEmpty) {
+              contenido = Text(
+                'Sin equipos registrados para ${_controller.sensorId}',
+                style: GoogleFonts.inter(fontSize: 13, color: subtextColor),
+              );
+            } else {
+              contenido = Column(
+                children: [
+                  for (final equipo in equipos)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: ActuatorTile(actuador: equipo, now: now),
+                    ),
+                ],
+              );
+            }
+
+            final activos = equipos.where((e) => e.encendido).length;
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Equipos',
+                      style: GoogleFonts.poppins(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                        color: textColor,
+                      ),
+                    ),
+                    if (equipos.isNotEmpty)
+                      Text(
+                        '$activos de ${equipos.length} encendidos',
+                        style: GoogleFonts.inter(
+                            fontSize: 12, color: subtextColor),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                contenido,
+              ],
+            );
+          },
+        );
+      },
     );
   }
 

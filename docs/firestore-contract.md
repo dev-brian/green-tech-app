@@ -31,6 +31,10 @@ El `estado` (semáforo) **no** se guarda: la app lo calcula con los rangos de
 
 Estado de los equipos (HU-M03). La app solo lo observa; no lo modifica.
 
+La app muestra los equipos cuyo `sensor_id` coincide con el sensor activo
+(consulta `where('sensor_id', isEqualTo: ...)`, no requiere índice compuesto).
+Si `tipo` no es uno de los valores conocidos, se muestra como equipo genérico.
+
 | Campo | Tipo | Ejemplo |
 |---|---|---|
 | `nombre` | string | `"Bomba de riego"` |
