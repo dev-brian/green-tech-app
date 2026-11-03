@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../models/sensor_model.dart';
+import '../config/variable_config.dart';
 import '../models/zone_status.dart';
 import '../services/sensor_data_controller.dart';
 import '../utils/colors.dart';
 import '../utils/neumorphism.dart';
 import '../widgets/live_clock.dart';
-import '../widgets/sensor_card.dart';
 
 /// Muestra la misma zona activa que el Dashboard — no hace su propio fetch
 /// por separado, para que nunca se desincronice de lo que se ve en la
@@ -143,10 +143,10 @@ class _SensorDetailScreenState extends State<SensorDetailScreen> {
                     const SizedBox(height: 14),
                     for (final v in HydroVariable.values)
                       _dataTile(
-                        v.label,
-                        r[v] == null ? 'Sin datos' : v.display(r[v]!.value),
+                        v.spec.label,
+                        r[v] == null ? 'Sin datos' : v.spec.display(r[v]!.value),
                         r[v]?.level,
-                        iconForVariable(v),
+                        v.spec.icon,
                         isDark,
                       ),
                   ],

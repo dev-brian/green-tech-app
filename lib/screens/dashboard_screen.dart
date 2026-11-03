@@ -11,7 +11,8 @@ import '../utils/neumorphism.dart';
 import '../widgets/chart_widget.dart';
 import '../widgets/live_clock.dart';
 import '../widgets/location_picker_dialog.dart';
-import '../widgets/sensor_card.dart';
+import '../widgets/variable_card.dart';
+import '../widgets/zone_section.dart';
 import 'alerts_screen.dart';
 import 'history_screen.dart';
 import 'profile_screen.dart';
@@ -151,20 +152,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
           return ValueListenableBuilder<String?>(
             valueListenable: _controller.error,
             builder: (context, errorMsg, __) {
-              return ValueListenableBuilder<ZoneStatus?>(
-                valueListenable: _controller.currentZone,
-                builder: (context, zone, ___) {
-                  if (loading && zone == null) {
+              return ValueListenableBuilder<Map<String, ZoneStatus>>(
+                valueListenable: _controller.zones,
+                builder: (context, zones, ___) {
+                  if (loading && zones.isEmpty) {
                     return const Center(
                       child: CircularProgressIndicator(color: AppColors.primary),
                     );
                   }
 
-                  if (errorMsg != null && zone == null) {
+                  if (errorMsg != null && zones.isEmpty) {
                     return _buildErrorState(errorMsg, isDark);
                   }
 
-                  if (zone == null) {
+                  if (zones.isEmpty) {
                     return _buildWaitingState(isDark);
                   }
 
@@ -175,10 +176,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         constraints: const BoxConstraints(maxWidth: 1000),
                         child: LayoutBuilder(builder: (context, constraints) {
                           final wide = constraints.maxWidth > 650;
-                          final maxCrossExtent = wide ? 240.0 : 180.0;
-
                           return ListView(
-                            padding: const EdgeInsets.all(18),
+                            padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
                             children: [
                               ValueListenableBuilder<bool>(
                                 valueListenable: _controller.offline,
@@ -187,7 +186,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                         padding:
                                             const EdgeInsets.only(bottom: 14),
                                         child: _buildOfflineBanner(
-                                            zone.timestamp, isDark),
+                                            _ultimaLectura(zones), isDark),
                                       )
                                     : const SizedBox.shrink(),
                               ),
@@ -196,59 +195,50 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                 const SizedBox(height: 14),
                               ],
                               // Se reconstruye cada 10 s para que "hace X"
-                              // avance y detectar si la zona dejó de reportar.
+                              // avance y detectar zonas que dejaron de reportar.
                               LiveClock(
                                 builder: (context, now) {
-                                  final stale = lecturaDesactualizada(
-                                      zone.timestamp, now);
+                                  final ordenadas =
+                                      zonasPorSeveridad(zones.values, now);
                                   return Column(
                                     crossAxisAlignment:
                                         CrossAxisAlignment.stretch,
                                     children: [
-                                    _buildHeaderSection(zone, isDark, now, stale),
-                                    _buildZoneSelector(zone.zoneId),
-                                    const SizedBox(height: 24),
-                                    Text(
-                                      'Variables de la zona',
-                                      style: GoogleFonts.poppins(
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.w700,
-                                        color: textColor,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 12),
-                                    GridView(
-                                      shrinkWrap: true,
-                                      physics: const NeverScrollableScrollPhysics(),
-                                      gridDelegate:
-                                          SliverGridDelegateWithMaxCrossAxisExtent(
-                                        maxCrossAxisExtent: maxCrossExtent,
-                                        mainAxisSpacing: 14,
-                                        crossAxisSpacing: 14,
-                                        mainAxisExtent: 145,
-                                      ),
-                                      children: [
-                                        for (final v in HydroVariable.values)
-                                          _buildVariableCard(zone, v, stale),
-                                        _buildSensorInfoCard(isDark),
+                                      _buildSummary(ordenadas, now, isDark),
+                                      for (final zone in ordenadas) ...[
+                                        const SizedBox(height: 16),
+                                        Container(
+                                          padding: const EdgeInsets.all(14),
+                                          decoration:
+                                              NeumorphismDecoration.extruded(
+                                            context: context,
+                                            isDark: isDark,
+                                            borderRadius: 20,
+                                          ),
+                                          child: ZoneSection(
+                                            zone: zone,
+                                            now: now,
+                                            onOpen: () => _openZone(zone.zoneId),
+                                          ),
+                                        ),
                                       ],
-                                    ),
                                     ],
                                   );
                                 },
                               ),
-                              const SizedBox(height: 20),
+                              const SizedBox(height: 24),
                               _buildWeatherCard(isDark),
-                              const SizedBox(height: 28),
+                              const SizedBox(height: 24),
                               Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 children: [
-                                  Text(
-                                    'Pronóstico próximas horas',
-                                    style: GoogleFonts.poppins(
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.w700,
-                                      color: textColor,
+                                  Expanded(
+                                    child: Text(
+                                      'Pronóstico próximas horas',
+                                      style: GoogleFonts.poppins(
+                                        fontSize: 17,
+                                        fontWeight: FontWeight.w700,
+                                        color: textColor,
+                                      ),
                                     ),
                                   ),
                                   TextButton(
@@ -257,15 +247,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                           builder: (_) => const HistoryScreen()),
                                     ),
                                     child: Text(
-                                      'Ver histórico',
+                                      'Histórico',
                                       style: GoogleFonts.inter(
-                                        fontWeight: FontWeight.w600,
-                                        color: AppColors.secondary,
+                                        fontWeight: FontWeight.w700,
+                                        color: isDark
+                                            ? AppColors.darkTextPrimary
+                                            : AppColors.secondaryDark,
                                       ),
                                     ),
                                   ),
                                 ],
                               ),
+                              const SizedBox(height: 8),
                               Container(
                                 decoration: NeumorphismDecoration.extruded(
                                   context: context,
@@ -290,7 +283,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                         ),
                                 ),
                               ),
-                              const SizedBox(height: 20),
                             ],
                           );
                         }),
@@ -401,52 +393,63 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
+  /// Hora del dato más reciente entre todas las zonas.
+  DateTime _ultimaLectura(Map<String, ZoneStatus> zones) => zones.values
+      .map((z) => z.timestamp)
+      .reduce((a, b) => a.isAfter(b) ? a : b);
+
   /// Sin red: Firestore sigue entregando la caché local. Se avisa para que
   /// el productor sepa que los valores pueden no ser los actuales.
   Widget _buildOfflineBanner(DateTime ultimaLectura, bool isDark) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: AppColors.accentOrange.withValues(alpha: isDark ? 0.18 : 0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.accentOrange.withValues(alpha: 0.4)),
-      ),
-      child: Row(
-        children: [
-          const Icon(Icons.wifi_off, color: AppColors.accentOrange, size: 18),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              'Sin conexión · mostrando los últimos datos guardados '
-              '(${DateFormat('HH:mm').format(ultimaLectura)})',
-              style: GoogleFonts.inter(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: AppColors.accentOrange,
+    final color = AppColors.estadoTexto(EstadoNivel.alerta, isDark: isDark);
+    return Semantics(
+      liveRegion: true,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: isDark ? 0.18 : 0.1),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: color, width: 1.5),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.wifi_off_rounded, color: color, size: 20),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                'Sin conexión · datos de las '
+                '${DateFormat('HH:mm').format(ultimaLectura)}',
+                style: GoogleFonts.inter(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: color,
+                ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildInlineErrorBanner(String message, bool isDark) {
+    final color = AppColors.estadoTexto(EstadoNivel.critico, isDark: isDark);
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: AppColors.critico.withValues(alpha: isDark ? 0.18 : 0.1),
+        color: color.withValues(alpha: isDark ? 0.18 : 0.1),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.critico.withValues(alpha: 0.4)),
+        border: Border.all(color: color, width: 1.5),
       ),
       child: Row(
         children: [
-          const Icon(Icons.error_outline, color: AppColors.critico, size: 18),
+          Icon(Icons.error_outline, color: color, size: 20),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
               'No se pudo actualizar los sensores: $message',
-              style: GoogleFonts.inter(fontSize: 12, color: AppColors.critico),
+              style: GoogleFonts.inter(
+                  fontSize: 13, fontWeight: FontWeight.w600, color: color),
             ),
           ),
         ],
@@ -454,119 +457,55 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _buildHeaderSection(
-      ZoneStatus zone, bool isDark, DateTime now, bool stale) {
+  /// Resumen arriba de las zonas: estado de la peor zona y cuántas zonas
+  /// necesitan atención.
+  Widget _buildSummary(List<ZoneStatus> ordenadas, DateTime now, bool isDark) {
     final textColor = isDark ? AppColors.darkTextPrimary : AppColors.textPrimary;
-    final subtextColor = isDark ? AppColors.darkTextSecondary : AppColors.textSecondary;
+    final subtextColor =
+        isDark ? AppColors.darkTextSecondary : AppColors.textSecondary;
+    final peor = ordenadas.first;
+    final atencion = ordenadas
+        .where((z) =>
+            lecturaDesactualizada(z.timestamp, now) ||
+            z.overallLevel != EstadoNivel.normal)
+        .length;
+    final total = ordenadas.length;
 
-    return Container(
-      decoration: NeumorphismDecoration.extruded(
-        context: context,
-        isDark: isDark,
-        borderRadius: 18,
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: AppColors.mintAccent.withValues(alpha: isDark ? 0.2 : 0.3),
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: const Icon(Icons.eco, color: AppColors.primary, size: 28),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Bienvenido',
-                        style: GoogleFonts.inter(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w400,
-                          color: subtextColor,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        'Monitoreo de cultivo',
-                        style: GoogleFonts.poppins(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w700,
-                          color: textColor,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 18),
-            Wrap(
-              runSpacing: 10,
-              spacing: 10,
-              children: [
-                stale
-                    ? _buildStatusChip(
-                        'Estado', 'Sin datos recientes', subtextColor, isDark)
-                    : _buildStatusChip(
-                        'Estado',
-                        AppColors.labelForEstado(zone.overallLevel),
-                        AppColors.forEstado(zone.overallLevel),
-                        isDark),
-                _buildStatusChip(
-                    'Zona', zone.zoneId, AppColors.secondary, isDark),
-                _buildStatusChip(
-                    'Última',
-                    formatHace(zone.timestamp, now),
-                    stale ? AppColors.accentOrange : subtextColor,
-                    isDark),
-              ],
-            )
-          ],
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Estado del invernadero',
+          style: GoogleFonts.poppins(
+            fontSize: 22,
+            fontWeight: FontWeight.w700,
+            color: textColor,
+          ),
         ),
-      ),
-    );
-  }
-
-  Widget _buildStatusChip(String label, String value, Color color, bool isDark) {
-    final textColor = isDark ? AppColors.darkTextPrimary : AppColors.textPrimary;
-
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: isDark ? 0.2 : 0.12),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withValues(alpha: isDark ? 0.4 : 0.3), width: 1),
-      ),
-      child: Text.rich(
-        TextSpan(
+        const SizedBox(height: 6),
+        Wrap(
+          spacing: 10,
+          runSpacing: 6,
+          crossAxisAlignment: WrapCrossAlignment.center,
           children: [
-            TextSpan(
-              text: '$label: ',
-              style: GoogleFonts.inter(
-                fontWeight: FontWeight.w600,
-                fontSize: 12,
-                color: textColor,
-              ),
+            EstadoPill(
+              estado: peor.overallLevel,
+              desactualizada: lecturaDesactualizada(peor.timestamp, now),
             ),
-            TextSpan(
-              text: value,
+            Text(
+              atencion == 0
+                  ? '$total ${total == 1 ? 'zona' : 'zonas'} en orden'
+                  : '$atencion de $total ${total == 1 ? 'zona' : 'zonas'} '
+                      'requieren atención',
               style: GoogleFonts.inter(
+                fontSize: 14,
                 fontWeight: FontWeight.w500,
-                fontSize: 12,
-                color: color,
+                color: subtextColor,
               ),
             ),
           ],
         ),
-      ),
+      ],
     );
   }
 
@@ -631,56 +570,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   ),
                   TextButton(
                     onPressed: _changeLocation,
+                    style: TextButton.styleFrom(
+                      foregroundColor: isDark
+                          ? AppColors.darkTextPrimary
+                          : AppColors.secondaryDark,
+                    ),
                     child: const Text('Cambiar'),
                   ),
                 ],
               ),
             );
           },
-        );
-      },
-    );
-  }
-
-  /// Una tarjeta por variable. El color sale del `level` que manda el
-  /// backend; si la variable no llegó, la tarjeta se muestra "Sin datos".
-  Widget _buildVariableCard(ZoneStatus zone, HydroVariable v, bool stale) {
-    final m = zone[v];
-    return SensorCard(
-      label: v.label,
-      value: m == null ? '—' : v.format(m.value),
-      unit: v.unit,
-      icon: iconForVariable(v),
-      estado: m?.level ?? EstadoNivel.normal,
-      onTap: _goToDetail,
-      desactualizado: stale || m == null,
-    );
-  }
-
-  /// Fila de chips para cambiar de zona; solo aparece con más de una.
-  Widget _buildZoneSelector(String selectedId) {
-    return ValueListenableBuilder<Map<String, ZoneStatus>>(
-      valueListenable: _controller.zones,
-      builder: (context, zones, _) {
-        if (zones.length < 2) return const SizedBox.shrink();
-        final ids = zones.keys.toList()..sort();
-        return Padding(
-          padding: const EdgeInsets.only(top: 14),
-          child: Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              for (final id in ids)
-                ChoiceChip(
-                  label: Text(id),
-                  avatar: Icon(Icons.circle,
-                      size: 10,
-                      color: AppColors.forEstado(zones[id]!.overallLevel)),
-                  selected: id == selectedId,
-                  onSelected: (_) => _controller.selectZone(id),
-                ),
-            ],
-          ),
         );
       },
     );
@@ -703,60 +603,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  void _goToDetail() {
+  /// Abre el detalle de [zoneId] (el Detalle muestra la zona activa).
+  void _openZone(String zoneId) {
+    _controller.selectZone(zoneId);
     Navigator.of(context)
         .push(MaterialPageRoute(builder: (_) => const SensorDetailScreen()));
-  }
-
-  Widget _buildSensorInfoCard(bool isDark) {
-    return InkWell(
-      onTap: _goToDetail,
-      borderRadius: BorderRadius.circular(18),
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: NeumorphismDecoration.glowingExtruded(
-          isDark: isDark,
-          accentColor: AppColors.secondary,
-          borderRadius: 18,
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            const Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Icon(Icons.sensors, color: AppColors.secondary, size: 24),
-                Icon(Icons.arrow_forward_ios, color: AppColors.secondary, size: 14),
-              ],
-            ),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Ver detalle',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.poppins(
-                    color: isDark ? AppColors.darkTextPrimary : AppColors.textPrimary,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 15,
-                  ),
-                ),
-                Text(
-                  'de la zona',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.inter(
-                    color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary,
-                    fontSize: 12,
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
   }
 }

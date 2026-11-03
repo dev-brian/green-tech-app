@@ -11,7 +11,10 @@ enum MockScenario {
   phAlto('pH alto'),
   ecBaja('EC baja'),
   tanqueBajo('Tanque bajo'),
-  solucionCaliente('Solución caliente');
+  solucionCaliente('Solución caliente'),
+
+  /// La zona deja de reportar: su última lectura es de hace 10 min.
+  lecturaVieja('Sin datos recientes');
 
   const MockScenario(this.label);
   final String label;
@@ -37,12 +40,29 @@ class MockZoneStatusSource implements ZoneStatusSource {
   final Set<StreamController<ZoneStatusSnapshot>> _listeners = {};
 
   MockScenario _scenario;
+  final Map<String, MockScenario> _zoneScenarios = {};
+
   MockScenario get scenario => _scenario;
 
-  /// Cambia el escenario y emite de inmediato, sin esperar al siguiente
-  /// intervalo, para que el cambio se vea al instante en la app.
+  /// Cambia el escenario de TODAS las zonas (borra los que se hayan fijado
+  /// por zona) y emite de inmediato, sin esperar al siguiente intervalo,
+  /// para que el cambio se vea al instante en la app.
   set scenario(MockScenario value) {
     _scenario = value;
+    _zoneScenarios.clear();
+    _emit();
+  }
+
+  /// Escenario efectivo de [zoneId].
+  MockScenario scenarioOf(String zoneId) => _zoneScenarios[zoneId] ?? _scenario;
+
+  /// Fuerza un escenario solo en [zoneId] y emite de inmediato.
+  void setZoneScenario(String zoneId, MockScenario value) {
+    _zoneScenarios[zoneId] = value;
+    _emit();
+  }
+
+  void _emit() {
     for (final c in _listeners) {
       c.add(_snapshot());
     }
@@ -83,10 +103,12 @@ class MockZoneStatusSource implements ZoneStatusSource {
           level: level,
         );
     const ok = EstadoNivel.normal;
-    final s = _scenario;
+    final s = scenarioOf(zoneId);
     return ZoneStatus(
       zoneId: zoneId,
-      timestamp: now,
+      timestamp: s == MockScenario.lecturaVieja
+          ? now.subtract(const Duration(minutes: 10))
+          : now,
       airTemp: m(22.5, 0.6, ok),
       humidity: m(65, 3, ok),
       light: m(18000, 800, ok),

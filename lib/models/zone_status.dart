@@ -3,33 +3,10 @@ import 'sensor_model.dart';
 
 /// Las 7 variables hidropónicas que reporta cada zona del invernadero.
 ///
-/// El orden de los valores es el orden en que se muestran en la app.
-enum HydroVariable {
-  airTemp('Temperatura del aire', '°C', 1),
-  humidity('Humedad ambiental', '%', 0),
-  light('Luz', 'lux', 0),
-  ph('pH', '', 1),
-  ec('Conductividad (EC)', 'mS/cm', 2),
-  solutionTemp('Temperatura de la solución', '°C', 1),
-  tankLevel('Nivel del tanque', '%', 0);
-
-  const HydroVariable(this.label, this.unit, this.decimals);
-
-  final String label;
-  final String unit;
-
-  /// Decimales con los que se muestra el valor.
-  final int decimals;
-
-  String format(double value) => value.toStringAsFixed(decimals);
-
-  /// Valor con su unidad, p. ej. `22.5°C`, `65%`, `1.80 mS/cm` o `6.0`.
-  String display(double value) => switch (unit) {
-        '' => format(value),
-        '°C' || '%' => '${format(value)}$unit',
-        _ => '${format(value)} $unit',
-      };
-}
+/// Solo identifica la variable. Cómo se muestra (nombre, unidad, ícono,
+/// decimales y grupo) sale de la tabla `variableSpecs` en
+/// lib/config/variable_config.dart.
+enum HydroVariable { airTemp, humidity, light, ph, ec, solutionTemp, tankLevel }
 
 /// Una variable medida: su valor y el nivel que calculó el backend.
 ///

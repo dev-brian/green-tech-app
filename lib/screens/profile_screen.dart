@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../config/variable_config.dart';
 import '../models/zone_status.dart';
 import '../services/firebase_service.dart';
 import '../services/sensor_data_controller.dart';
@@ -228,7 +229,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       const Divider(height: 1, indent: 16, endIndent: 16),
                       SwitchListTile(
                         title: Text(
-                          'Alertas: ${v.label}',
+                          'Alertas: ${v.spec.label}',
                           style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w500, color: textColor),
                         ),
                         value: _controller.notifEnabled(v),
