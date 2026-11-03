@@ -50,7 +50,10 @@ void main() {
       await tester.pumpWidget(_wrap(const LoginScreen()));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.widgetWithText(ElevatedButton, 'Iniciar sesión'));
+      // El botón queda bajo el pliegue del viewport de prueba (800x600).
+      final loginBtn = find.widgetWithText(ElevatedButton, 'Iniciar sesión');
+      await tester.ensureVisible(loginBtn);
+      await tester.tap(loginBtn);
       await tester.pump();
 
       expect(find.text('Ingresa tu email'), findsOneWidget);
