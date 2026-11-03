@@ -1,7 +1,7 @@
 # GREEN TECH — App móvil de monitoreo de cultivos
 
 Proyecto base en Flutter siguiendo la arquitectura definida: Splash → Login/Registro →
-Dashboard → Detalle de sensores → Histórico → Alertas → Perfil.
+Dashboard → Detalle de zona → Alertas → Perfil.
 
 ## 🚀 Cómo correrlo
 
@@ -19,7 +19,8 @@ Dashboard → Detalle de sensores → Histórico → Alertas → Perfil.
    flutter run
    ```
 
-`ApiService` aún usa datos simulados; la autenticación ya es real con Firebase.
+Las zonas usan por ahora la fuente de prueba (`MockZoneStatusSource`); la
+autenticación ya es real con Firebase.
 
 ## 🔐 Firebase Auth (HU-M01) — ya conectado
 
@@ -44,9 +45,10 @@ Si cambias el `applicationId` o agregas iOS/Web, regenera la config con
 
 ## 🔌 Conectar datos reales
 
-- **API / IoT (ESP32)**: en `lib/services/api_service.dart` cambia
-  `useMockData = false` y define `baseUrl` con tu backend real. Ya está listo el
-  paquete `http` para que solo reemplaces los métodos marcados con `TODO`.
+- **Estado de las zonas**: pasa `FirestoreZoneStatusSource` a
+  `SensorDataController` en lugar de la fuente de prueba. El backend debe
+  publicar `greenhouses/{id}/state/latest` con el contrato de
+  `docs/firestore-contract.md`.
 
 ## 🎨 Sistema de colores (semáforo)
 
@@ -62,8 +64,8 @@ el backend (ver `docs/firestore-contract.md`).
 lib/
 ├── main.dart
 ├── screens/       # 7 pantallas de la app
-├── widgets/        # sensor_card, chart_widget, alert_tile
-├── services/       # zone_status_source (Firestore y prueba), api_service (clima), firebase_service (auth)
+├── widgets/        # variable_card, zone_section, alert_tile, live_clock
+├── services/       # zone_status_source (Firestore y prueba), firebase_service (auth)
 ├── adapters/       # zone_status_adapter.dart (único que conoce los campos de Firestore)
 ├── models/         # zone_status.dart (7 variables), sensor_model.dart
 └── utils/          # colors.dart (tema + semáforo)

@@ -1,6 +1,6 @@
 ---
 name: greentech-design
-description: Sistema de diseño de la app Flutter Green Tech (monitoreo de invernaderos hidropónicos) — colores de estado con contraste WCAG AA, tarjetas de variable, secciones por zona, reglas de legibilidad a 360 px y bajo sol directo, y cómo verificarlo con pruebas y capturas. Úsalo SIEMPRE que crees, rediseñes o ajustes cualquier pantalla, widget, tarjeta, color, ícono, texto de estado, banner o layout en green-tech-app (Dashboard, Detalle, Alertas, Histórico, Perfil, Login), aunque el cambio parezca pequeño ("cambia el color", "agrega una tarjeta", "muestra la variable X", "arregla que se corta el texto") o el usuario no diga "diseño".
+description: Sistema de diseño de la app Flutter Green Tech (monitoreo de invernaderos hidropónicos) — colores de estado con contraste WCAG AA, tarjetas de variable, secciones por zona, reglas de legibilidad a 360 px y bajo sol directo, y cómo verificarlo con pruebas y capturas. Úsalo SIEMPRE que crees, rediseñes o ajustes cualquier pantalla, widget, tarjeta, color, ícono, texto de estado, banner o layout en green-tech-app (Dashboard, Detalle, Alertas, Perfil, Login), aunque el cambio parezca pequeño ("cambia el color", "agrega una tarjeta", "muestra la variable X", "arregla que se corta el texto") o el usuario no diga "diseño".
 ---
 
 # Diseño de Green Tech
