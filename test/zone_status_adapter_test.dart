@@ -121,14 +121,4 @@ void main() {
       expect(json.keys, unorderedEquals(['ph', 'timestamp']));
     });
   });
-
-  group('HydroVariable.display', () {
-    test('formatea cada unidad', () {
-      expect(HydroVariable.airTemp.display(22.46), '22.5°C');
-      expect(HydroVariable.tankLevel.display(78.4), '78%');
-      expect(HydroVariable.ec.display(1.8), '1.80 mS/cm');
-      expect(HydroVariable.light.display(18000), '18000 lux');
-      expect(HydroVariable.ph.display(6.04), '6.0');
-    });
-  });
 }

@@ -40,7 +40,8 @@ class AppColors {
   static const Color background = Color(0xFFEAEFF5);
   static const Color surface = Color(0xFFEAEFF5);
   static const Color textPrimary = Color(0xFF1E293B);
-  static const Color textSecondary = Color(0xFF64748B);
+  // #475569: 6.6:1 sobre el fondo (el anterior #64748B daba 4.1:1, < AA).
+  static const Color textSecondary = Color(0xFF475569);
   static const Color border = Color(0xFFCBD5E1);
 
   // Fondos y Superficies Neumórficas (Modo Oscuro)
@@ -60,6 +61,32 @@ class AppColors {
         return critico;
     }
   }
+
+  // Texto e íconos de estado con contraste WCAG AA (≥ 4.5:1) sobre las
+  // tarjetas, también sobre la píldora teñida con el mismo color. Los
+  // colores de marca de arriba (primary, accentOrange, critico) no llegan
+  // a 4.5:1 sobre el fondo claro, así que no se usan para texto pequeño.
+  // Contraste en claro sobre #EAEFF5 / en oscuro sobre #1E293B:
+  static const Color _okLight = Color(0xFF065F46); // 6.6:1
+  static const Color _warnLight = Color(0xFF92400E); // 6.1:1
+  static const Color _critLight = Color(0xFFB91C1C); // 5.6:1
+  static const Color _staleLight = Color(0xFF475569); // 6.6:1
+  static const Color _okDark = Color(0xFF34D399); // 7.6:1
+  static const Color _warnDark = Color(0xFFFBBF24); // 8.8:1
+  static const Color _critDark = Color(0xFFFCA5A5); // 7.7:1
+  static const Color _staleDark = Color(0xFFCBD5E1); // 9.9:1
+
+  /// Color para texto, íconos y bordes de estado (semáforo).
+  static Color estadoTexto(EstadoNivel estado, {required bool isDark}) =>
+      switch (estado) {
+        EstadoNivel.normal => isDark ? _okDark : _okLight,
+        EstadoNivel.alerta => isDark ? _warnDark : _warnLight,
+        EstadoNivel.critico => isDark ? _critDark : _critLight,
+      };
+
+  /// Gris para lecturas viejas o ausentes.
+  static Color sinDatos({required bool isDark}) =>
+      isDark ? _staleDark : _staleLight;
 
   static IconData iconForEstado(EstadoNivel estado) {
     switch (estado) {

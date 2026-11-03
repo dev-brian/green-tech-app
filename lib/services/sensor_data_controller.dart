@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../adapters/zone_status_adapter.dart';
 import '../models/sensor_model.dart';
+import '../config/variable_config.dart';
 import '../models/zone_status.dart';
 import 'api_service.dart';
 import 'app_status.dart';
@@ -253,12 +254,12 @@ class SensorDataController {
       for (final v in HydroVariable.values) {
         final m = zone[v];
         if (m == null || m.level == EstadoNivel.normal) continue;
-        final valor = v.display(m.value);
+        final valor = v.spec.display(m.value);
         items.add(AlertItem(
           id: '$zoneId-${v.name}-${zone.timestamp.millisecondsSinceEpoch}',
           mensaje: m.level == EstadoNivel.critico
-              ? '$zoneId · ${v.label} en nivel crítico ($valor)'
-              : '$zoneId · ${v.label} fuera de rango ($valor)',
+              ? '$zoneId · ${v.spec.label} en nivel crítico ($valor)'
+              : '$zoneId · ${v.spec.label} fuera de rango ($valor)',
           nivel: m.level,
           fecha: zone.timestamp,
           activa: true,
@@ -294,7 +295,7 @@ class SensorDataController {
           if (!notifEnabled(v)) continue;
           NotificationService.instance.showAlert(AlertItem(
             id: '$zoneId-${v.name}',
-            mensaje: '$zoneId · ${v.label}: ${v.display(m.value)}',
+            mensaje: '$zoneId · ${v.spec.label}: ${v.spec.display(m.value)}',
             nivel: m.level,
             fecha: zone.timestamp,
             activa: true,

@@ -111,5 +111,28 @@ void main() {
 
       expect(await niveles, [EstadoNivel.normal, EstadoNivel.critico]);
     });
+
+    test('se puede forzar un escenario solo en una zona', () async {
+      final source = mock()..setZoneScenario('zona-2', MockScenario.phAlto);
+      final zonas = (await source.watchZones('gh-1').first).zones;
+
+      expect(zonas['zona-1']!.ph!.level, EstadoNivel.normal);
+      expect(zonas['zona-2']!.ph!.level, EstadoNivel.critico);
+      expect(source.scenarioOf('zona-2'), MockScenario.phAlto);
+
+      // El escenario global reemplaza los fijados por zona.
+      source.scenario = MockScenario.ecBaja;
+      expect(source.scenarioOf('zona-2'), MockScenario.ecBaja);
+    });
+
+    test('"lectura vieja" fecha la zona 10 min atrás', () async {
+      final source = mock()..scenario = MockScenario.lecturaVieja;
+      final antes = DateTime.now();
+      final zona = (await source.watchZones('gh-1').first).zones['zona-1']!;
+
+      final edad = antes.difference(zona.timestamp);
+      expect(edad, greaterThanOrEqualTo(const Duration(minutes: 9, seconds: 59)));
+      expect(zona.overallLevel, EstadoNivel.normal);
+    });
   });
 }
