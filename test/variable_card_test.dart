@@ -30,6 +30,8 @@ void main() {
       expect(find.text('7.6'), findsOneWidget);
       expect(find.text('Crítico'), findsOneWidget);
       expect(find.byIcon(Icons.error_rounded), findsOneWidget);
+      expect(tester.getSemantics(find.byType(VariableCard)).label,
+          'pH: 7.6. Crítico');
       expect(tester.takeException(), isNull);
     });
 

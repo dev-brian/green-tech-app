@@ -52,7 +52,8 @@ class VariableCard extends StatelessWidget {
 
     return Semantics(
       button: onTap != null,
-      label: '${spec.label}: $value ${spec.unit}. $statusLabel',
+      label: '${spec.label}: ${m == null ? 'sin valor' : spec.display(m.value)}. '
+          '$statusLabel',
       excludeSemantics: true,
       child: Material(
         color: Colors.transparent,
