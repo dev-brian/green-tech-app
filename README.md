@@ -50,11 +50,11 @@ Si cambias el `applicationId` o agregas iOS/Web, regenera la config con
 
 ## 🎨 Sistema de colores (semáforo)
 
-Todo el semáforo verde/amarillo/rojo vive en `lib/utils/colors.dart`
-(`AppColors.normal`, `AppColors.alerta`, `AppColors.critico`) y los rangos que
-determinan cada estado están en `lib/models/sensor_model.dart`
-(`estadoTemperatura`, `estadoHumedadAire`, `estadoHumedadSuelo`). Ajusta esos
-rangos según el cultivo que estés monitoreando.
+Los colores verde/amarillo/rojo viven en `lib/utils/colors.dart`
+(`AppColors.forEstado`). La app **no calcula** si un valor está fuera de
+rango: cada variable llega del backend con su `level` (`ok`, `warn` o
+`critical`) y la app solo lo pinta. Los rangos de cada cultivo se ajustan en
+el backend (ver `docs/firestore-contract.md`).
 
 ## 📁 Estructura
 
@@ -63,8 +63,9 @@ lib/
 ├── main.dart
 ├── screens/       # 7 pantallas de la app
 ├── widgets/        # sensor_card, chart_widget, alert_tile
-├── services/       # api_service (datos), firebase_service (auth)
-├── models/         # sensor_model.dart
+├── services/       # zone_status_source (Firestore y prueba), api_service (clima), firebase_service (auth)
+├── adapters/       # zone_status_adapter.dart (único que conoce los campos de Firestore)
+├── models/         # zone_status.dart (7 variables), sensor_model.dart
 └── utils/          # colors.dart (tema + semáforo)
 ```
 

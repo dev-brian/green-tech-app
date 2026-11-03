@@ -10,6 +10,22 @@ class LocationOption {
   const LocationOption({required this.query, required this.displayName});
 }
 
+/// Clima exterior actual de la ubicación elegida (OpenWeather). Es
+/// contexto para el productor; no se mezcla con los datos de las zonas.
+class CurrentWeather {
+  final String location;
+  final double temperature;
+  final double humidity;
+  final DateTime timestamp;
+
+  const CurrentWeather({
+    required this.location,
+    required this.temperature,
+    required this.humidity,
+    required this.timestamp,
+  });
+}
+
 class ApiService {
   static String get _apiKey => dotenv.env['WEATHER_API_KEY'] ?? '';
   static const String _baseUrl = 'https://api.openweathermap.org/data/2.5';
@@ -22,15 +38,12 @@ class ApiService {
     _selectedLocation = value.isEmpty ? 'Tlaxcala' : value;
   }
 
-  Future<SensorReading> getCurrentReading(
-      {String sensorId = 'ESP32-01'}) async {
+  Future<CurrentWeather> getCurrentWeather() async {
     final weather = await _fetchCurrentWeather();
-    return SensorReading(
-      sensorId: sensorId,
-      ubicacion: _selectedLocation,
-      temperatura: weather['temp'] as double,
-      humedadAire: weather['humidity'] as double,
-      humedadSuelo: _soilHumidityFromWeather(weather),
+    return CurrentWeather(
+      location: _selectedLocation,
+      temperature: weather['temp'] as double,
+      humidity: weather['humidity'] as double,
       timestamp: DateTime.now(),
     );
   }
@@ -168,17 +181,5 @@ class ApiService {
     final body = jsonDecode(response.body) as Map<String, dynamic>;
     final list = body['list'] as List<dynamic>;
     return list.cast<Map<String, dynamic>>();
-  }
-
-  double _soilHumidityFromWeather(Map<String, dynamic> weather) {
-    final humidity = weather['humidity'] as double;
-    final description = (weather['description'] as String).toLowerCase();
-    if (description.contains('rain')) {
-      return (humidity - 8).clamp(20, 95).toDouble();
-    }
-    if (description.contains('clear')) {
-      return (humidity - 2).clamp(20, 95).toDouble();
-    }
-    return humidity.clamp(20, 95).toDouble();
   }
 }

@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import '../models/sensor_model.dart';
+import '../models/zone_status.dart';
+import '../services/api_service.dart';
+import '../services/mock_zone_status_source.dart';
 import '../services/sensor_data_controller.dart';
 import '../utils/colors.dart';
 import '../utils/neumorphism.dart';
@@ -118,6 +121,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ),
         backgroundColor: AppColors.secondary,
         actions: [
+          if (_controller.source case final MockZoneStatusSource mock)
+            _buildScenarioMenu(mock),
           IconButton(
             icon: Icon(
               isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
@@ -146,20 +151,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
           return ValueListenableBuilder<String?>(
             valueListenable: _controller.error,
             builder: (context, errorMsg, __) {
-              return ValueListenableBuilder<SensorReading?>(
-                valueListenable: _controller.currentReading,
-                builder: (context, reading, ___) {
-                  if (loading && reading == null) {
+              return ValueListenableBuilder<ZoneStatus?>(
+                valueListenable: _controller.currentZone,
+                builder: (context, zone, ___) {
+                  if (loading && zone == null) {
                     return const Center(
                       child: CircularProgressIndicator(color: AppColors.primary),
                     );
                   }
 
-                  if (errorMsg != null && reading == null) {
+                  if (errorMsg != null && zone == null) {
                     return _buildErrorState(errorMsg, isDark);
                   }
 
-                  if (reading == null) {
+                  if (zone == null) {
                     return _buildWaitingState(isDark);
                   }
 
@@ -182,7 +187,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                         padding:
                                             const EdgeInsets.only(bottom: 14),
                                         child: _buildOfflineBanner(
-                                            reading.timestamp, isDark),
+                                            zone.timestamp, isDark),
                                       )
                                     : const SizedBox.shrink(),
                               ),
@@ -191,19 +196,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                 const SizedBox(height: 14),
                               ],
                               // Se reconstruye cada 10 s para que "hace X"
-                              // avance y detectar si el sensor dejó de reportar.
+                              // avance y detectar si la zona dejó de reportar.
                               LiveClock(
                                 builder: (context, now) {
                                   final stale = lecturaDesactualizada(
-                                      reading.timestamp, now);
+                                      zone.timestamp, now);
                                   return Column(
                                     crossAxisAlignment:
                                         CrossAxisAlignment.stretch,
                                     children: [
-                                    _buildHeaderSection(reading, isDark, now, stale),
+                                    _buildHeaderSection(zone, isDark, now, stale),
+                                    _buildZoneSelector(zone.zoneId),
                                     const SizedBox(height: 24),
                                     Text(
-                                      'Sensores en tiempo real',
+                                      'Variables de la zona',
                                       style: GoogleFonts.poppins(
                                         fontSize: 18,
                                         fontWeight: FontWeight.w700,
@@ -222,34 +228,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                         mainAxisExtent: 145,
                                       ),
                                       children: [
-                                        SensorCard(
-                                          label: 'Temperatura',
-                                          value: reading.temperatura.toStringAsFixed(1),
-                                          unit: '°C',
-                                          icon: Icons.thermostat,
-                                          estado: reading.estadoTemperatura,
-                                          onTap: _goToDetail,
-                                          desactualizado: stale,
-                                        ),
-                                        SensorCard(
-                                          label: 'Humedad ambiental',
-                                          value: reading.humedadAire.toStringAsFixed(0),
-                                          unit: '%',
-                                          icon: Icons.water_drop_outlined,
-                                          estado: reading.estadoHumedadAire,
-                                          onTap: _goToDetail,
-                                          desactualizado: stale,
-                                        ),
-                                        SensorCard(
-                                          label: 'Humedad del suelo',
-                                          value: reading.humedadSuelo.toStringAsFixed(0),
-                                          unit: '%',
-                                          icon: Icons.grass,
-                                          estado: reading.estadoHumedadSuelo,
-                                          onTap: _goToDetail,
-                                          desactualizado: stale,
-                                        ),
-                                        _buildSensorInfoCard(reading, isDark),
+                                        for (final v in HydroVariable.values)
+                                          _buildVariableCard(zone, v, stale),
+                                        _buildSensorInfoCard(isDark),
                                       ],
                                     ),
                                     ],
@@ -384,8 +365,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  /// Firebase responde pero `telemetria/{sensorId}` aún no existe: el
-  /// simulador (o el ESP32) todavía no ha enviado ninguna lectura.
+  /// La fuente responde pero `greenhouses/{id}/state/latest` aún no existe:
+  /// el backend todavía no ha publicado el estado de ninguna zona.
   Widget _buildWaitingState(bool isDark) {
     final textColor = isDark ? AppColors.darkTextPrimary : AppColors.textPrimary;
     final subtextColor =
@@ -399,7 +380,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             const Icon(Icons.sensors_off, color: AppColors.secondary, size: 42),
             const SizedBox(height: 12),
             Text(
-              'Esperando datos del sensor…',
+              'Esperando datos del invernadero…',
               style: GoogleFonts.poppins(
                 fontSize: 16,
                 fontWeight: FontWeight.w700,
@@ -409,8 +390,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
             const SizedBox(height: 6),
             Text(
-              'Aún no llegan lecturas de ${_controller.sensorId}. '
-              'Aparecerán aquí automáticamente.',
+              'Aún no llega el estado de las zonas. '
+              'Aparecerá aquí automáticamente.',
               style: GoogleFonts.inter(fontSize: 13, color: subtextColor),
               textAlign: TextAlign.center,
             ),
@@ -474,7 +455,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Widget _buildHeaderSection(
-      SensorReading reading, bool isDark, DateTime now, bool stale) {
+      ZoneStatus zone, bool isDark, DateTime now, bool stale) {
     final textColor = isDark ? AppColors.darkTextPrimary : AppColors.textPrimary;
     final subtextColor = isDark ? AppColors.darkTextSecondary : AppColors.textSecondary;
 
@@ -536,14 +517,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         'Estado', 'Sin datos recientes', subtextColor, isDark)
                     : _buildStatusChip(
                         'Estado',
-                        AppColors.labelForEstado(reading.estadoGeneral),
-                        AppColors.forEstado(reading.estadoGeneral),
+                        AppColors.labelForEstado(zone.overallLevel),
+                        AppColors.forEstado(zone.overallLevel),
                         isDark),
                 _buildStatusChip(
-                    'Ubicación', reading.ubicacion, AppColors.secondary, isDark),
+                    'Zona', zone.zoneId, AppColors.secondary, isDark),
                 _buildStatusChip(
                     'Última',
-                    formatHace(reading.timestamp, now),
+                    formatHace(zone.timestamp, now),
                     stale ? AppColors.accentOrange : subtextColor,
                     isDark),
               ],
@@ -596,7 +577,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final subtextColor =
         isDark ? AppColors.darkTextSecondary : AppColors.textSecondary;
 
-    return ValueListenableBuilder<SensorReading?>(
+    return ValueListenableBuilder<CurrentWeather?>(
       valueListenable: _controller.weather,
       builder: (context, clima, _) {
         return ValueListenableBuilder<String?>(
@@ -604,8 +585,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
           builder: (context, weatherError, __) {
             final String detalle;
             if (clima != null) {
-              detalle = '${clima.temperatura.toStringAsFixed(1)}°C · '
-                  'Humedad ${clima.humedadAire.toStringAsFixed(0)}%';
+              detalle = '${clima.temperature.toStringAsFixed(1)}°C · '
+                  'Humedad ${clima.humidity.toStringAsFixed(0)}%';
             } else if (weatherError != null) {
               detalle = 'No se pudo cargar el clima';
             } else {
@@ -661,12 +642,73 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
+  /// Una tarjeta por variable. El color sale del `level` que manda el
+  /// backend; si la variable no llegó, la tarjeta se muestra "Sin datos".
+  Widget _buildVariableCard(ZoneStatus zone, HydroVariable v, bool stale) {
+    final m = zone[v];
+    return SensorCard(
+      label: v.label,
+      value: m == null ? '—' : v.format(m.value),
+      unit: v.unit,
+      icon: iconForVariable(v),
+      estado: m?.level ?? EstadoNivel.normal,
+      onTap: _goToDetail,
+      desactualizado: stale || m == null,
+    );
+  }
+
+  /// Fila de chips para cambiar de zona; solo aparece con más de una.
+  Widget _buildZoneSelector(String selectedId) {
+    return ValueListenableBuilder<Map<String, ZoneStatus>>(
+      valueListenable: _controller.zones,
+      builder: (context, zones, _) {
+        if (zones.length < 2) return const SizedBox.shrink();
+        final ids = zones.keys.toList()..sort();
+        return Padding(
+          padding: const EdgeInsets.only(top: 14),
+          child: Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (final id in ids)
+                ChoiceChip(
+                  label: Text(id),
+                  avatar: Icon(Icons.circle,
+                      size: 10,
+                      color: AppColors.forEstado(zones[id]!.overallLevel)),
+                  selected: id == selectedId,
+                  onSelected: (_) => _controller.selectZone(id),
+                ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  /// Menú para forzar escenarios de la fuente de prueba.
+  Widget _buildScenarioMenu(MockZoneStatusSource mock) {
+    return PopupMenuButton<MockScenario>(
+      icon: const Icon(Icons.science_outlined),
+      tooltip: 'Escenario de prueba',
+      onSelected: (s) => setState(() => mock.scenario = s),
+      itemBuilder: (_) => [
+        for (final s in MockScenario.values)
+          CheckedPopupMenuItem(
+            value: s,
+            checked: s == mock.scenario,
+            child: Text(s.label),
+          ),
+      ],
+    );
+  }
+
   void _goToDetail() {
     Navigator.of(context)
         .push(MaterialPageRoute(builder: (_) => const SensorDetailScreen()));
   }
 
-  Widget _buildSensorInfoCard(SensorReading reading, bool isDark) {
+  Widget _buildSensorInfoCard(bool isDark) {
     return InkWell(
       onTap: _goToDetail,
       borderRadius: BorderRadius.circular(18),
@@ -693,6 +735,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
               children: [
                 Text(
                   'Ver detalle',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.poppins(
                     color: isDark ? AppColors.darkTextPrimary : AppColors.textPrimary,
                     fontWeight: FontWeight.w700,
@@ -700,7 +744,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   ),
                 ),
                 Text(
-                  'del sensor',
+                  'de la zona',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.inter(
                     color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary,
                     fontSize: 12,

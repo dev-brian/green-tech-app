@@ -38,7 +38,8 @@ void main() async {
 
   await AppThemeController.init();
   await SensorDataController.instance.init();
-  // Suscripción en tiempo real a los sensores (telemetria/ en Firestore).
+  // Suscripción en tiempo real al estado de las zonas (por ahora, la fuente
+  // de prueba; ver SensorDataController).
   SensorDataController.instance.start();
   await NotificationService.instance.init();
 

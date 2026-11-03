@@ -4,89 +4,153 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:greentech_app/models/sensor_model.dart';
+import 'package:greentech_app/models/zone_status.dart';
 import 'package:greentech_app/services/app_status.dart';
 import 'package:greentech_app/services/sensor_data_controller.dart';
-import 'package:greentech_app/services/telemetry_repository.dart';
+import 'package:greentech_app/services/zone_status_source.dart';
 
-/// Repositorio controlado por la prueba: lo que se agrega a [controller]
-/// es lo que "llega" de Firestore.
-class _FakeRepository implements TelemetryRepository {
-  final controller = StreamController<TelemetrySnapshot>.broadcast();
+/// Fuente controlada por la prueba: lo que se agrega a [controller] es lo
+/// que "llega" del backend. Simula Firestore (requiere Firebase).
+class _FakeSource implements ZoneStatusSource {
+  final controller = StreamController<ZoneStatusSnapshot>.broadcast();
 
   @override
-  Stream<TelemetrySnapshot> watchReading(String sensorId) => controller.stream;
+  bool get requiresFirebase => true;
+
+  @override
+  Stream<ZoneStatusSnapshot> watchZones(String greenhouseId) =>
+      controller.stream;
 }
 
-SensorReading _lectura({double temperatura = 24.5}) => SensorReading(
-      sensorId: 'ESP32-01',
-      ubicacion: 'Zona Tomate A',
-      temperatura: temperatura,
-      humedadAire: 65,
-      humedadSuelo: 70,
+ZoneStatus _zona(
+  String id, {
+  double ph = 6.0,
+  EstadoNivel phLevel = EstadoNivel.normal,
+}) =>
+    ZoneStatus(
+      zoneId: id,
       timestamp: DateTime.now(),
+      airTemp: const Measurement(value: 22.5, level: EstadoNivel.normal),
+      ph: Measurement(value: ph, level: phLevel),
+      tankLevel: const Measurement(value: 78, level: EstadoNivel.normal),
+    );
+
+ZoneStatusSnapshot _snap(List<ZoneStatus> zonas, {bool fromCache = false}) =>
+    ZoneStatusSnapshot(
+      zones: {for (final z in zonas) z.zoneId: z},
+      fromCache: fromCache,
     );
 
 void main() {
-  late _FakeRepository repo;
+  late _FakeSource source;
   late SensorDataController sut;
 
   setUp(() {
     SharedPreferences.setMockInitialValues({});
     firebaseReady = true;
-    repo = _FakeRepository();
-    sut = SensorDataController.forTesting(repo);
+    source = _FakeSource();
+    sut = SensorDataController.forTesting(source);
   });
 
   tearDown(() async {
     await sut.stop();
-    await repo.controller.close();
+    await source.controller.close();
   });
 
-  test('publica cada lectura del stream y genera sus alertas', () async {
+  test('publica cada estado del stream y genera alertas con su level',
+      () async {
     await sut.start();
     expect(sut.loading.value, isTrue);
 
-    repo.controller.add(TelemetrySnapshot(reading: _lectura(), fromCache: false));
+    source.controller.add(_snap([_zona('zona-1')]));
     await Future<void>.delayed(Duration.zero);
 
     expect(sut.loading.value, isFalse);
-    expect(sut.currentReading.value?.temperatura, 24.5);
+    expect(sut.currentZone.value?.ph?.value, 6.0);
     expect(sut.alerts.value.single.nivel, EstadoNivel.normal);
 
-    repo.controller.add(
-        TelemetrySnapshot(reading: _lectura(temperatura: 35), fromCache: false));
+    // El nivel lo decide el backend: un pH "normal" marcado como crítico
+    // se muestra como crítico, sin que la app lo recalcule.
+    source.controller
+        .add(_snap([_zona('zona-1', ph: 6.0, phLevel: EstadoNivel.critico)]));
     await Future<void>.delayed(Duration.zero);
 
-    expect(sut.currentReading.value?.estadoGeneral, EstadoNivel.critico);
-    expect(sut.alerts.value.any((a) => a.nivel == EstadoNivel.critico), isTrue);
+    expect(sut.currentZone.value?.overallLevel, EstadoNivel.critico);
+    final alerta = sut.alerts.value.single;
+    expect(alerta.nivel, EstadoNivel.critico);
+    expect(alerta.mensaje, contains('pH'));
+    expect(alerta.mensaje, contains('zona-1'));
   });
 
-  test('si el documento desaparece conserva la última lectura', () async {
+  test('genera alertas de todas las zonas', () async {
     await sut.start();
-    repo.controller.add(TelemetrySnapshot(reading: _lectura(), fromCache: false));
-    repo.controller.add(const TelemetrySnapshot(reading: null, fromCache: false));
+    source.controller.add(_snap([
+      _zona('zona-1', ph: 7.6, phLevel: EstadoNivel.critico),
+      _zona('zona-2', ph: 6.8, phLevel: EstadoNivel.alerta),
+    ]));
     await Future<void>.delayed(Duration.zero);
 
-    expect(sut.currentReading.value?.temperatura, 24.5);
+    expect(sut.alerts.value.map((a) => a.nivel),
+        [EstadoNivel.critico, EstadoNivel.alerta]);
+  });
+
+  test('muestra la primera zona y permite cambiar entre zonas', () async {
+    await sut.start();
+    source.controller.add(_snap([_zona('zona-2'), _zona('zona-1')]));
+    await Future<void>.delayed(Duration.zero);
+    expect(sut.currentZone.value?.zoneId, 'zona-1');
+
+    sut.selectZone('zona-2');
+    expect(sut.currentZone.value?.zoneId, 'zona-2');
+
+    // La selección se conserva con cada emisión nueva.
+    source.controller.add(_snap([_zona('zona-1'), _zona('zona-2', ph: 6.4)]));
+    await Future<void>.delayed(Duration.zero);
+    expect(sut.currentZone.value?.zoneId, 'zona-2');
+    expect(sut.currentZone.value?.ph?.value, 6.4);
+
+    sut.selectZone('no-existe');
+    expect(sut.currentZone.value?.zoneId, 'zona-2');
+  });
+
+  test('si el documento desaparece conserva el último estado', () async {
+    await sut.start();
+    source.controller.add(_snap([_zona('zona-1')]));
+    source.controller.add(_snap(const []));
+    await Future<void>.delayed(Duration.zero);
+
+    expect(sut.currentZone.value?.zoneId, 'zona-1');
     expect(sut.error.value, isNull);
   });
 
   test('un error del stream se muestra sin tumbar la app', () async {
     await sut.start();
-    repo.controller.addError(Exception('permission-denied'));
+    source.controller.addError(Exception('permission-denied'));
     await Future<void>.delayed(Duration.zero);
 
     expect(sut.loading.value, isFalse);
     expect(sut.error.value, contains('permission-denied'));
   });
 
-  test('sin Firebase no se suscribe y deja un mensaje claro', () async {
+  test('sin Firebase no se suscribe a una fuente que lo requiere', () async {
     firebaseReady = false;
     await sut.start();
 
-    expect(repo.controller.hasListener, isFalse);
+    expect(source.controller.hasListener, isFalse);
     expect(sut.loading.value, isFalse);
     expect(sut.error.value, contains('Firebase'));
+  });
+
+  test('las preferencias de notificación son por variable', () async {
+    await sut.init();
+    expect(sut.notifEnabled(HydroVariable.ph), isTrue);
+
+    await sut.setNotifPref(HydroVariable.ph, false);
+    expect(sut.notifEnabled(HydroVariable.ph), isFalse);
+    expect(sut.notifEnabled(HydroVariable.ec), isTrue);
+
+    final prefs = await SharedPreferences.getInstance();
+    expect(prefs.getBool('notif_ph'), isFalse);
   });
 
   group('modo offline (Task 2.3)', () {
@@ -94,47 +158,49 @@ void main() {
         () async {
       await sut.start();
 
-      repo.controller.add(TelemetrySnapshot(reading: _lectura(), fromCache: true));
+      source.controller.add(_snap([_zona('zona-1')], fromCache: true));
       await Future<void>.delayed(const Duration(milliseconds: 10));
       expect(sut.offline.value, isTrue);
-      expect(sut.currentReading.value, isNotNull);
+      expect(sut.currentZone.value, isNotNull);
 
-      repo.controller.add(TelemetrySnapshot(reading: _lectura(), fromCache: false));
+      source.controller.add(_snap([_zona('zona-1')]));
       await Future<void>.delayed(Duration.zero);
       expect(sut.offline.value, isFalse);
     });
 
     test('no parpadea si el servidor responde antes del margen', () async {
-      final lento = SensorDataController.forTesting(repo,
+      final lento = SensorDataController.forTesting(source,
           offlineDelay: const Duration(milliseconds: 200));
       await lento.start();
 
-      repo.controller.add(TelemetrySnapshot(reading: _lectura(), fromCache: true));
+      source.controller.add(_snap([_zona('zona-1')], fromCache: true));
       await Future<void>.delayed(const Duration(milliseconds: 20));
-      repo.controller.add(TelemetrySnapshot(reading: _lectura(), fromCache: false));
+      source.controller.add(_snap([_zona('zona-1')]));
       await Future<void>.delayed(const Duration(milliseconds: 250));
 
       expect(lento.offline.value, isFalse);
       await lento.stop();
     });
 
-    test('guarda la última lectura del servidor y la usa en un arranque en frío',
+    test('guarda el último estado del servidor y lo usa en un arranque en frío',
         () async {
       await sut.start();
-      repo.controller.add(
-          TelemetrySnapshot(reading: _lectura(temperatura: 27.5), fromCache: false));
+      source.controller.add(_snap(
+          [_zona('zona-1', ph: 7.4, phLevel: EstadoNivel.critico)]));
       await Future<void>.delayed(const Duration(milliseconds: 10));
 
       final prefs = await SharedPreferences.getInstance();
-      final guardada = jsonDecode(prefs.getString('ultima_lectura_ESP32-01')!)
+      final guardado = jsonDecode(prefs.getString(
+              'ultimo_estado_${SensorDataController.defaultGreenhouseId}')!)
           as Map<String, dynamic>;
-      expect(guardada['temperatura'], 27.5);
+      expect(guardado['zona-1']['ph'], {'value': 7.4, 'level': 'critical'});
 
       // Nueva instancia (app reabierta) sin red: aún no llega ningún snapshot.
-      final reabierta = SensorDataController.forTesting(_FakeRepository());
+      final reabierta = SensorDataController.forTesting(_FakeSource());
       await reabierta.start();
-      expect(reabierta.currentReading.value?.temperatura, 27.5);
-      expect(reabierta.alerts.value, isNotEmpty);
+      expect(reabierta.currentZone.value?.ph,
+          const Measurement(value: 7.4, level: EstadoNivel.critico));
+      expect(reabierta.alerts.value.single.nivel, EstadoNivel.critico);
       await reabierta.stop();
     });
   });

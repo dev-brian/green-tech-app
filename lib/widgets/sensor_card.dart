@@ -1,8 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../models/sensor_model.dart';
+import '../models/zone_status.dart';
 import '../utils/colors.dart';
 import '../utils/neumorphism.dart';
+
+/// Ícono de cada variable hidropónica (Dashboard y Detalle).
+IconData iconForVariable(HydroVariable v) => switch (v) {
+      HydroVariable.airTemp => Icons.thermostat,
+      HydroVariable.humidity => Icons.water_drop_outlined,
+      HydroVariable.light => Icons.wb_sunny_outlined,
+      HydroVariable.ph => Icons.science_outlined,
+      HydroVariable.ec => Icons.bolt_outlined,
+      HydroVariable.solutionTemp => Icons.device_thermostat,
+      HydroVariable.tankLevel => Icons.water,
+    };
 
 /// Tarjeta del Dashboard con Soft Neumorphism adaptada a Modo Claro y Oscuro.
 ///
