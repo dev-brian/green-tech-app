@@ -53,10 +53,10 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyAOIAH3LvFbIRBL5BJxtQVQkMKR-ZOdeos',
-    appId: '1:998092953685:android:824691da5d099452289cdc',
-    messagingSenderId: '998092953685',
-    projectId: 'green-tech-96bb2',
-    storageBucket: 'green-tech-96bb2.firebasestorage.app',
+    apiKey: 'AIzaSyAJILQ2sogxbpzskfGSdg8Ki4KjUjWSU-k',
+    appId: '1:851216985452:android:00ec82d544113716f45749',
+    messagingSenderId: '851216985452',
+    projectId: 'green-tech-dc353',
+    storageBucket: 'green-tech-dc353.firebasestorage.app',
   );
 }

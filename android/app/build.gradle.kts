@@ -2,11 +2,10 @@ plugins {
     id("com.android.application")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
-    // Enable Google services plugin for Firebase (declared in root build file)
-    // TODO(firebase): descomenta esta linea cuando agregues tu
-    // android/app/google-services.json real (via `flutterfire configure`).
-    // Mientras el archivo no exista, este plugin hace fallar el build de Android.
-    // id("com.google.gms.google-services")
+    // Procesa android/app/google-services.json (api_key, project_id y el
+    // `default_web_client_id` de respaldo). El archivo ya existe y la
+    // dependencia está declarada en android/build.gradle.kts con `apply false`.
+    id("com.google.gms.google-services")
 }
 
 android {
