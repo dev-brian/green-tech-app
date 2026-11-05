@@ -1,15 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:intl/intl.dart';
 import '../models/sensor_model.dart';
+import '../config/variable_config.dart';
+import '../models/zone_status.dart';
 import '../services/sensor_data_controller.dart';
 import '../utils/colors.dart';
 import '../utils/neumorphism.dart';
-import '../widgets/location_picker_dialog.dart';
+import '../widgets/live_clock.dart';
 
-/// Muestra la misma lectura activa que el Dashboard (clima real o
-/// simulado vía sliders) — ya no hace su propio fetch por separado, para
-/// que nunca se desincronice de lo que se ve en la pantalla principal.
+/// Muestra la misma zona activa que el Dashboard — no hace su propio fetch
+/// por separado, para que nunca se desincronice de lo que se ve en la
+/// pantalla principal.
 class SensorDetailScreen extends StatefulWidget {
   const SensorDetailScreen({super.key});
 
@@ -19,18 +20,6 @@ class SensorDetailScreen extends StatefulWidget {
 
 class _SensorDetailScreenState extends State<SensorDetailScreen> {
   final SensorDataController _controller = SensorDataController.instance;
-
-  Future<void> _changeLocation() async {
-    final result = await showLocationPicker(
-      context: context,
-      api: _controller.api,
-      initialLocation: _controller.currentLocation,
-    );
-
-    if (result != null && result.trim().isNotEmpty) {
-      await _controller.loadRealWeather(location: result);
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -43,7 +32,7 @@ class _SensorDetailScreenState extends State<SensorDetailScreen> {
       backgroundColor: bgColor,
       appBar: AppBar(
         title: Text(
-          'Detalle del Sensor',
+          'Detalle de la Zona',
           style: GoogleFonts.poppins(fontWeight: FontWeight.w700),
         ),
         backgroundColor: AppColors.secondary,
@@ -55,57 +44,23 @@ class _SensorDetailScreenState extends State<SensorDetailScreen> {
             ),
             onPressed: () => AppThemeController.toggleTheme(),
           ),
-          IconButton(
-            icon: const Icon(Icons.location_on_outlined),
-            tooltip: 'Cambiar ubicación',
-            onPressed: _changeLocation,
-          ),
         ],
       ),
-      body: ValueListenableBuilder<SensorReading?>(
-        valueListenable: _controller.currentReading,
+      body: ValueListenableBuilder<ZoneStatus?>(
+        valueListenable: _controller.currentZone,
         builder: (context, r, _) {
           if (r == null) {
             return const Center(
                 child: CircularProgressIndicator(color: AppColors.primary));
           }
           return RefreshIndicator(
-            onRefresh: () => _controller.loadRealWeather(),
+            onRefresh: () => _controller.start(),
             child: Center(
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 800),
                 child: ListView(
                   padding: const EdgeInsets.all(18),
                   children: [
-                    if (_controller.isSimulating)
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 14),
-                        child: Container(
-                          padding: const EdgeInsets.all(10),
-                          decoration: BoxDecoration(
-                            color: AppColors.accentOrange
-                                .withValues(alpha: isDark ? 0.18 : 0.12),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Row(
-                            children: [
-                              const Icon(Icons.tune,
-                                  color: AppColors.accentOrange, size: 16),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  'Mostrando valores simulados desde el Dashboard',
-                                  style: GoogleFonts.inter(
-                                    fontSize: 12,
-                                    color: textColor,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
                     Container(
                       decoration: NeumorphismDecoration.extruded(
                         context: context,
@@ -137,14 +92,14 @@ class _SensorDetailScreenState extends State<SensorDetailScreen> {
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
                                       Text(
-                                        'ID del sensor',
+                                        'Zona',
                                         style: GoogleFonts.inter(
                                           fontSize: 13,
                                           color: subtextColor,
                                         ),
                                       ),
                                       Text(
-                                        r.sensorId,
+                                        r.zoneId,
                                         style: GoogleFonts.poppins(
                                           fontWeight: FontWeight.w700,
                                           fontSize: 18,
@@ -158,17 +113,19 @@ class _SensorDetailScreenState extends State<SensorDetailScreen> {
                             ),
                             const Divider(height: 28),
                             _infoRow(
-                              Icons.place_outlined,
-                              'Ubicación',
-                              r.ubicacion,
+                              Icons.eco_outlined,
+                              'Estado',
+                              r.mensajeEstado,
                               isDark,
                             ),
                             const SizedBox(height: 12),
-                            _infoRow(
-                              Icons.access_time,
-                              'Última actualización',
-                              _hace(r.timestamp),
-                              isDark,
+                            LiveClock(
+                              builder: (context, now) => _infoRow(
+                                Icons.access_time,
+                                'Última actualización',
+                                formatHace(r.timestamp, now),
+                                isDark,
+                              ),
                             ),
                           ],
                         ),
@@ -184,27 +141,14 @@ class _SensorDetailScreenState extends State<SensorDetailScreen> {
                       ),
                     ),
                     const SizedBox(height: 14),
-                    _dataTile(
-                      'Temperatura',
-                      '${r.temperatura.toStringAsFixed(1)}°C',
-                      r.estadoTemperatura,
-                      Icons.thermostat,
-                      isDark,
-                    ),
-                    _dataTile(
-                      'Humedad del aire',
-                      '${r.humedadAire.toStringAsFixed(0)}%',
-                      r.estadoHumedadAire,
-                      Icons.water_drop_outlined,
-                      isDark,
-                    ),
-                    _dataTile(
-                      'Humedad del suelo',
-                      '${r.humedadSuelo.toStringAsFixed(0)}%',
-                      r.estadoHumedadSuelo,
-                      Icons.grass,
-                      isDark,
-                    ),
+                    for (final v in HydroVariable.values)
+                      _dataTile(
+                        v.spec.label,
+                        r[v] == null ? 'Sin datos' : v.spec.display(r[v]!.value),
+                        r[v]?.level,
+                        v.spec.icon,
+                        isDark,
+                      ),
                   ],
                 ),
               ),
@@ -213,13 +157,6 @@ class _SensorDetailScreenState extends State<SensorDetailScreen> {
         },
       ),
     );
-  }
-
-  String _hace(DateTime t) {
-    final diff = DateTime.now().difference(t);
-    if (diff.inSeconds < 60) return 'Hace ${diff.inSeconds} seg';
-    if (diff.inMinutes < 60) return 'Hace ${diff.inMinutes} min';
-    return DateFormat('dd/MM HH:mm').format(t);
   }
 
   Widget _infoRow(IconData icon, String label, String value, bool isDark) {
@@ -249,10 +186,13 @@ class _SensorDetailScreenState extends State<SensorDetailScreen> {
     );
   }
 
+  /// [estado] es null cuando la variable no llegó: se pinta en gris.
   Widget _dataTile(
-      String label, String value, EstadoNivel estado, IconData icon, bool isDark) {
-    final color = AppColors.forEstado(estado);
+      String label, String value, EstadoNivel? estado, IconData icon, bool isDark) {
     final textColor = isDark ? AppColors.darkTextPrimary : AppColors.textPrimary;
+    final color = estado == null
+        ? (isDark ? AppColors.darkTextSecondary : AppColors.textSecondary)
+        : AppColors.forEstado(estado);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),

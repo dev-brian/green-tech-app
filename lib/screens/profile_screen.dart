@@ -6,6 +6,8 @@ import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../config/variable_config.dart';
+import '../models/zone_status.dart';
 import '../services/firebase_service.dart';
 import '../services/sensor_data_controller.dart';
 import '../utils/colors.dart';
@@ -223,36 +225,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       activeThumbColor: AppColors.primary,
                       onChanged: (_) => AppThemeController.toggleTheme(),
                     ),
-                    const Divider(height: 1, indent: 16, endIndent: 16),
-                    SwitchListTile(
-                      title: Text(
-                        'Alertas de temperatura',
-                        style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w500, color: textColor),
+                    for (final v in HydroVariable.values) ...[
+                      const Divider(height: 1, indent: 16, endIndent: 16),
+                      SwitchListTile(
+                        title: Text(
+                          'Alertas: ${v.spec.label}',
+                          style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w500, color: textColor),
+                        ),
+                        value: _controller.notifEnabled(v),
+                        activeThumbColor: AppColors.primary,
+                        onChanged: (on) => setState(() => _controller.setNotifPref(v, on)),
                       ),
-                      value: _controller.notifTemp,
-                      activeThumbColor: AppColors.primary,
-                      onChanged: (v) => setState(() => _controller.setNotifPref('temp', v)),
-                    ),
-                    const Divider(height: 1, indent: 16, endIndent: 16),
-                    SwitchListTile(
-                      title: Text(
-                        'Alertas de humedad ambiental',
-                        style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w500, color: textColor),
-                      ),
-                      value: _controller.notifHumedadAire,
-                      activeThumbColor: AppColors.primary,
-                      onChanged: (v) => setState(() => _controller.setNotifPref('humedad_aire', v)),
-                    ),
-                    const Divider(height: 1, indent: 16, endIndent: 16),
-                    SwitchListTile(
-                      title: Text(
-                        'Alertas de humedad del suelo',
-                        style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w500, color: textColor),
-                      ),
-                      value: _controller.notifHumedadSuelo,
-                      activeThumbColor: AppColors.primary,
-                      onChanged: (v) => setState(() => _controller.setNotifPref('humedad_suelo', v)),
-                    ),
+                    ],
                   ],
                 ),
               ),
