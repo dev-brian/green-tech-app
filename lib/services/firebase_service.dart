@@ -146,10 +146,12 @@ class FirebaseService {
     await _guard(() => _auth.sendPasswordResetEmail(email: email.trim()));
   }
 
-  /// Client ID "Web" (client_type 3) del proyecto green-tech-96bb2.
+  /// Client ID "Web" (client_type 3) del proyecto green-tech-dc353.
   /// Google lo usa para emitir el ID token que luego validamos con Firebase.
+  /// Sale de `android/app/google-services.json` (`oauth_client` con
+  /// `client_type: 3`); si cambia el proyecto hay que actualizarlo ahí.
   static const _googleServerClientId =
-      '998092953685-e9jsneafi6g2tqilh5oofgoh6b4foor0.apps.googleusercontent.com';
+      '851216985452-l769659khviqckd1b17lr8vg7fqr68sd.apps.googleusercontent.com';
 
   bool _googleReady = false;
 
