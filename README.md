@@ -10,11 +10,17 @@ Dashboard → Detalle de zona → Alertas → Perfil.
    ```bash
    cd greentech_app
    ```
-3. Instala dependencias:
+3. Crea tu archivo `.env` a partir del ejemplo y pon tu `WEATHER_API_KEY`
+   (es obligatorio: `pubspec.yaml` lo declara como asset, y sin él fallan
+   `flutter run`, `flutter test` y `flutter analyze`):
+   ```bash
+   cp .env.example .env
+   ```
+4. Instala dependencias:
    ```bash
    flutter pub get
    ```
-4. Corre la app (con un emulador o celular conectado):
+5. Corre la app (con un emulador o celular conectado):
    ```bash
    flutter run
    ```
