@@ -44,7 +44,8 @@ void main() {
     setUp(() {
       SharedPreferences.setMockInitialValues({});
       controller = SensorDataController.instance;
-      mock = controller.source as MockZoneStatusSource;
+      mock = MockZoneStatusSource();
+      controller.useSource(mock);
     });
 
     /// Monta el Dashboard en un teléfono de 360 px de ancho. Es alto para
@@ -55,7 +56,7 @@ void main() {
       addTearDown(tester.view.reset);
       // Todo corre en el reloj falso del test: el Timer de 5 s de la fuente
       // de prueba no avanza solo, así que no hay timers vivos al terminar.
-      controller.start();
+      controller.start(greenhouseId: 'demo');
       await tester.pumpWidget(MaterialApp(
         theme: buildAppTheme(),
         home: const DashboardScreen(),

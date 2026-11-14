@@ -3,9 +3,12 @@ import 'package:google_fonts/google_fonts.dart';
 import '../models/sensor_model.dart';
 import '../config/variable_config.dart';
 import '../models/zone_status.dart';
+import '../services/greenhouse_session.dart';
 import '../services/sensor_data_controller.dart';
 import '../utils/colors.dart';
 import '../utils/neumorphism.dart';
+import '../widgets/actuators_card.dart';
+import '../widgets/history_chart.dart';
 import '../widgets/live_clock.dart';
 
 /// Muestra la misma zona activa que el Dashboard — no hace su propio fetch
@@ -20,6 +23,7 @@ class SensorDetailScreen extends StatefulWidget {
 
 class _SensorDetailScreenState extends State<SensorDetailScreen> {
   final SensorDataController _controller = SensorDataController.instance;
+  final GreenhouseSession _session = GreenhouseSession.instance;
 
   @override
   Widget build(BuildContext context) {
@@ -149,6 +153,20 @@ class _SensorDetailScreenState extends State<SensorDetailScreen> {
                         v.spec.icon,
                         isDark,
                       ),
+                    if (_controller.greenhouseId case final gh?) ...[
+                      const SizedBox(height: 12),
+                      ActuatorsCard(
+                        repository: _session.sources.actuators,
+                        greenhouseId: gh,
+                        zoneId: r.zoneId,
+                      ),
+                      const SizedBox(height: 20),
+                      HistorySection(
+                        repository: _session.sources.history,
+                        greenhouseId: gh,
+                        zoneId: r.zoneId,
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -167,19 +185,22 @@ class _SensorDetailScreenState extends State<SensorDetailScreen> {
       children: [
         Icon(icon, size: 18, color: AppColors.secondary),
         const SizedBox(width: 8),
-        Text(
-          '$label: ',
-          style: GoogleFonts.inter(
-            color: subtextColor,
-            fontSize: 13,
-          ),
-        ),
-        Text(
-          value,
-          style: GoogleFonts.inter(
-            fontWeight: FontWeight.w600,
-            fontSize: 13,
-            color: textColor,
+        Expanded(
+          child: Text.rich(
+            TextSpan(
+              text: '$label: ',
+              style: GoogleFonts.inter(color: subtextColor, fontSize: 13),
+              children: [
+                TextSpan(
+                  text: value,
+                  style: GoogleFonts.inter(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
+                    color: textColor,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ],

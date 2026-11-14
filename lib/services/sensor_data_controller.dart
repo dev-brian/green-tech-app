@@ -4,26 +4,23 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../adapters/zone_status_adapter.dart';
-import '../models/sensor_model.dart';
-import '../config/variable_config.dart';
 import '../models/zone_status.dart';
 import 'app_status.dart';
-import 'mock_zone_status_source.dart';
-import 'notification_service.dart';
 import 'zone_status_source.dart';
 
 /// Fuente única del estado "activo" del invernadero.
 ///
-/// Las zonas llegan en tiempo real desde un [ZoneStatusSource]: por ahora
-/// [MockZoneStatusSource] (datos de prueba); para usar Firestore basta con
-/// pasar [FirestoreZoneStatusSource]. Los niveles (semáforo) los calcula el
-/// backend; aquí solo se leen. Dashboard, Detalle y Alertas leen todos de
-/// aquí, así que siempre están sincronizados entre sí.
+/// Las zonas llegan en tiempo real desde un [ZoneStatusSource]:
+/// [FirestoreZoneStatusSource] (`greenhouses/{id}/state/latest`) con sesión
+/// iniciada, o `MockZoneStatusSource` en el modo demo (ver DataSources). Los
+/// niveles (semáforo) los calcula el backend; aquí solo se leen. Dashboard y
+/// Detalle leen de aquí, así que siempre están sincronizados entre sí. Las
+/// alertas NO se calculan aquí: llegan del backend (AlertsController).
 class SensorDataController {
   SensorDataController._internal({
     ZoneStatusSource? source,
     this.offlineDelay = const Duration(seconds: 3),
-  }) : source = source ?? MockZoneStatusSource();
+  }) : _source = source ?? FirestoreZoneStatusSource();
   static final SensorDataController instance =
       SensorDataController._internal();
 
@@ -42,17 +39,17 @@ class SensorDataController {
   /// parpadearía en cada arranque.
   final Duration offlineDelay;
 
-  /// Id de `greenhouses/{id}`, el mismo que usa la web.
-  static const String defaultGreenhouseId = 'axtR6p9ocsE0L79H5wbN';
+  ZoneStatusSource _source;
+  ZoneStatusSource get source => _source;
 
-  final ZoneStatusSource source;
+  /// Cambia la fuente (Firestore ↔ demo). Toma efecto en el próximo [start].
+  void useSource(ZoneStatusSource source) => _source = source;
 
   // --- Zonas del invernadero ---
   final ValueNotifier<Map<String, ZoneStatus>> zones = ValueNotifier(const {});
 
   /// Zona que se muestra en el Dashboard y en el Detalle.
   final ValueNotifier<ZoneStatus?> currentZone = ValueNotifier(null);
-  final ValueNotifier<List<AlertItem>> alerts = ValueNotifier(const []);
   final ValueNotifier<bool> loading = ValueNotifier(false);
   final ValueNotifier<String?> error = ValueNotifier(null);
 
@@ -62,13 +59,12 @@ class SensorDataController {
 
   StreamSubscription<ZoneStatusSnapshot>? _subscription;
   Timer? _offlineTimer;
-  String _greenhouseId = defaultGreenhouseId;
+  String? _greenhouseId;
   String? _selectedZoneId;
 
   final Map<HydroVariable, bool> _notif = {
     for (final v in HydroVariable.values) v: true,
   };
-  final Map<String, EstadoNivel> _ultimoNivelNotificado = {};
 
   bool _initialized = false;
 
@@ -94,7 +90,7 @@ class SensorDataController {
     await prefs.setBool(_notifKey(v), value);
   }
 
-  String get greenhouseId => _greenhouseId;
+  String? get greenhouseId => _greenhouseId;
 
   /// Cambia la zona que se muestra. Ignora ids que no existen.
   void selectZone(String zoneId) {
@@ -106,12 +102,24 @@ class SensorDataController {
 
   /// Se suscribe en tiempo real al estado del invernadero. Llamarlo de
   /// nuevo cancela la suscripción anterior (sirve como "reintentar" o para
-  /// cambiar de invernadero).
+  /// cambiar de invernadero). Sin [greenhouseId] reusa el último.
   Future<void> start({String? greenhouseId}) async {
-    _greenhouseId = greenhouseId ?? _greenhouseId;
+    if (greenhouseId != null && greenhouseId != _greenhouseId) {
+      // Otro invernadero: no mezclar sus zonas con las del anterior.
+      _greenhouseId = greenhouseId;
+      _selectedZoneId = null;
+      zones.value = const {};
+      currentZone.value = null;
+    }
     await _subscription?.cancel();
     _subscription = null;
     error.value = null;
+    final gh = _greenhouseId;
+    if (gh == null) {
+      loading.value = false;
+      error.value = 'Elige un invernadero';
+      return;
+    }
 
     // Arranque en frío sin red: pinta el último estado guardado mientras
     // llega el primer snapshot (o si nunca llega).
@@ -119,7 +127,6 @@ class SensorDataController {
       final cached = await _loadCachedZones();
       if (cached.isNotEmpty && zones.value.isEmpty) {
         _publish(cached);
-        alerts.value = _alertsFor(cached);
       }
     }
 
@@ -130,7 +137,7 @@ class SensorDataController {
     }
 
     loading.value = true;
-    _subscription = source.watchZones(_greenhouseId).listen(
+    _subscription = source.watchZones(gh).listen(
       _onSnapshot,
       onError: (Object e) {
         loading.value = false;
@@ -147,7 +154,6 @@ class SensorDataController {
     // y la UI muestra "Esperando datos del invernadero".
     if (snap.zones.isEmpty) return;
     _publish(snap.zones);
-    _refreshAlerts(snap.zones);
     if (!snap.fromCache) _saveCachedZones(snap.zones);
   }
 
@@ -205,72 +211,21 @@ class SensorDataController {
     }
   }
 
+  /// Detiene la suscripción y olvida el invernadero (al cerrar sesión).
+  Future<void> reset() async {
+    await stop();
+    _greenhouseId = null;
+    _selectedZoneId = null;
+    zones.value = const {};
+    currentZone.value = null;
+    offline.value = false;
+    error.value = null;
+  }
+
   Future<void> stop() async {
     _offlineTimer?.cancel();
     _offlineTimer = null;
     await _subscription?.cancel();
     _subscription = null;
-  }
-
-  /// Una alerta por cada variable que el backend no reporta como `ok`, en
-  /// todas las zonas. Si no hay ninguna, una sola entrada "resuelta".
-  List<AlertItem> _alertsFor(Map<String, ZoneStatus> data) {
-    final items = <AlertItem>[];
-    final ids = data.keys.toList()..sort();
-    for (final zoneId in ids) {
-      final zone = data[zoneId]!;
-      for (final v in HydroVariable.values) {
-        final m = zone[v];
-        if (m == null || m.level == EstadoNivel.normal) continue;
-        final valor = v.spec.display(m.value);
-        items.add(AlertItem(
-          id: '$zoneId-${v.name}-${zone.timestamp.millisecondsSinceEpoch}',
-          mensaje: m.level == EstadoNivel.critico
-              ? '$zoneId · ${v.spec.label} en nivel crítico ($valor)'
-              : '$zoneId · ${v.spec.label} fuera de rango ($valor)',
-          nivel: m.level,
-          fecha: zone.timestamp,
-          activa: true,
-        ));
-      }
-    }
-    if (items.isEmpty) {
-      final fecha = data.values.first.timestamp;
-      items.add(AlertItem(
-        id: 'normal-${fecha.millisecondsSinceEpoch}',
-        mensaje: 'Condiciones óptimas en todas las zonas',
-        nivel: EstadoNivel.normal,
-        fecha: fecha,
-        activa: false,
-      ));
-    }
-    return items;
-  }
-
-  void _refreshAlerts(Map<String, ZoneStatus> data) {
-    alerts.value = _alertsFor(data);
-
-    for (final MapEntry(key: zoneId, value: zone) in data.entries) {
-      final nivel = zone.overallLevel;
-      // Solo notificamos cuando el nivel de la zona CAMBIA respecto al
-      // último aviso, para no repetir la misma notificación con cada
-      // emisión del stream.
-      if (nivel != EstadoNivel.normal &&
-          nivel != _ultimoNivelNotificado[zoneId]) {
-        for (final v in HydroVariable.values) {
-          final m = zone[v];
-          if (m == null || m.level == EstadoNivel.normal) continue;
-          if (!notifEnabled(v)) continue;
-          NotificationService.instance.showAlert(AlertItem(
-            id: '$zoneId-${v.name}',
-            mensaje: '$zoneId · ${v.spec.label}: ${v.spec.display(m.value)}',
-            nivel: m.level,
-            fecha: zone.timestamp,
-            activa: true,
-          ));
-        }
-      }
-      _ultimoNivelNotificado[zoneId] = nivel;
-    }
   }
 }

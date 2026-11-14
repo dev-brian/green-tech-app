@@ -5,6 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart' show Firebase;
 import 'firebase_options.dart'; // generado por `flutterfire configure`
 import 'screens/splash_screen.dart';
+import 'services/alerts_controller.dart';
 import 'services/app_status.dart';
 import 'services/firebase_service.dart';
 import 'services/notification_service.dart';
@@ -35,10 +36,13 @@ void main() async {
 
   await AppThemeController.init();
   await SensorDataController.instance.init();
-  // Suscripción en tiempo real al estado de las zonas (por ahora, la fuente
-  // de prueba; ver SensorDataController).
-  SensorDataController.instance.start();
+  // Las alertas nuevas solo se notifican si el usuario no apagó esa
+  // variable en su Perfil.
+  AlertsController.instance
+      .configure(notifEnabled: SensorDataController.instance.notifEnabled);
   await NotificationService.instance.init();
+  // Las suscripciones en tiempo real arrancan al elegir invernadero
+  // (GreenhouseGateScreen → GreenhouseSession.select).
 
   runApp(const MyApp());
 }

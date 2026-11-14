@@ -128,7 +128,8 @@ void main() {
     _serveFonts(tester);
     final key = GlobalKey();
     final controller = SensorDataController.instance;
-    final mock = controller.source as MockZoneStatusSource;
+    final mock = MockZoneStatusSource();
+    controller.useSource(mock);
     // zona-1 en alerta y zona-2 en crítico: la crítica debe salir primero.
     mock.setZoneScenario('zona-1', MockScenario.solucionCaliente);
     mock.setZoneScenario('zona-2', MockScenario.phAlto);
@@ -140,7 +141,7 @@ void main() {
       await tester.pump();
     }
 
-    controller.start();
+    controller.start(greenhouseId: 'demo');
     await tester.pumpWidget(RepaintBoundary(
       key: key,
       child: MaterialApp(
