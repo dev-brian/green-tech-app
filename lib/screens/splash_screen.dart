@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../services/firebase_service.dart';
 import '../utils/colors.dart';
-import 'dashboard_screen.dart';
+import 'home_gate.dart';
 import 'login_screen.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -36,7 +36,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     if (!mounted) return;
     final loggedIn = results[1] != null;
     Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (_) => loggedIn ? const DashboardScreen() : const LoginScreen()),
+      MaterialPageRoute(builder: (_) => loggedIn ? const HomeGate() : const LoginScreen()),
     );
   }
 

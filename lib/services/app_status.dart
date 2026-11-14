@@ -8,5 +8,5 @@ library;
 /// GoogleService-Info.plist configurados y `Firebase.initializeApp()`
 /// no lanzó error). Mientras conectas tu proyecto real, esto queda en
 /// false y la app sigue funcionando en modo local (ver el botón
-/// "Continuar sin cuenta" en LoginScreen).
+/// "Ver demostración sin cuenta" en LoginScreen).
 bool firebaseReady = false;

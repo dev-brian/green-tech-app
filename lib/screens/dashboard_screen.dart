@@ -3,6 +3,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import '../models/sensor_model.dart';
 import '../models/zone_status.dart';
+import '../models/greenhouse.dart';
+import '../services/greenhouse_session.dart';
 import '../services/mock_zone_status_source.dart';
 import '../services/sensor_data_controller.dart';
 import '../utils/colors.dart';
@@ -23,6 +25,7 @@ class DashboardScreen extends StatefulWidget {
 
 class _DashboardScreenState extends State<DashboardScreen> {
   final SensorDataController _controller = SensorDataController.instance;
+  final GreenhouseSession _session = GreenhouseSession.instance;
 
   int _navIndex = 0;
 
@@ -51,15 +54,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return Scaffold(
       backgroundColor: bgColor,
       appBar: AppBar(
-        title: Text(
-          'GREEN TECH',
-          style: GoogleFonts.poppins(
-            fontWeight: FontWeight.w800,
-            letterSpacing: 1.2,
+        title: ValueListenableBuilder<Greenhouse?>(
+          valueListenable: _session.active,
+          builder: (context, gh, _) => Text(
+            gh?.name ?? 'GREEN TECH',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: GoogleFonts.poppins(fontWeight: FontWeight.w700),
           ),
         ),
         backgroundColor: AppColors.secondary,
         actions: [
+          ValueListenableBuilder<List<Greenhouse>>(
+            valueListenable: _session.greenhouses,
+            builder: (context, list, _) => list.length > 1
+                ? _buildGreenhouseMenu(list)
+                : const SizedBox.shrink(),
+          ),
           if (_controller.source case final MockZoneStatusSource mock)
             _buildScenarioMenu(mock),
           IconButton(
@@ -374,6 +385,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
           ],
         ),
+      ],
+    );
+  }
+
+  /// Selector de invernadero, solo si el usuario pertenece a más de uno.
+  Widget _buildGreenhouseMenu(List<Greenhouse> list) {
+    return PopupMenuButton<Greenhouse>(
+      icon: const Icon(Icons.swap_horiz_rounded),
+      tooltip: 'Cambiar de invernadero',
+      onSelected: (g) => _session.select(g),
+      itemBuilder: (_) => [
+        for (final g in list)
+          CheckedPopupMenuItem(
+            value: g,
+            checked: g.id == _session.active.value?.id,
+            child: Text('${g.name} · ${g.role.label}'),
+          ),
       ],
     );
   }

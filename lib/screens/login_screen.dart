@@ -2,12 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../services/app_status.dart';
 import '../services/firebase_service.dart';
+import '../services/greenhouse_session.dart';
 import '../services/session_storage.dart';
 import '../utils/colors.dart';
 import '../utils/neumorphism.dart';
 import '../utils/validators.dart';
 import 'dashboard_screen.dart';
 import 'forgot_password_screen.dart';
+import 'home_gate.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -64,7 +66,7 @@ class _LoginScreenState extends State<LoginScreen> {
       }
       if (!mounted) return;
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const DashboardScreen()),
+        MaterialPageRoute(builder: (_) => const HomeGate()),
       );
     } on AuthException catch (e) {
       if (mounted) setState(() => _errorMsg = e.message);
@@ -88,7 +90,7 @@ class _LoginScreenState extends State<LoginScreen> {
       final ok = await FirebaseService.instance.signInWithGoogle();
       if (!ok || !mounted) return; // el usuario cerró el selector de cuentas
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const DashboardScreen()),
+        MaterialPageRoute(builder: (_) => const HomeGate()),
       );
     } on AuthException catch (e) {
       if (mounted) setState(() => _errorMsg = e.message);
@@ -109,7 +111,9 @@ class _LoginScreenState extends State<LoginScreen> {
     ));
   }
 
-  void _continueWithoutAccount() {
+  Future<void> _continueWithoutAccount() async {
+    await GreenhouseSession.instance.enterDemo();
+    if (!mounted) return;
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(builder: (_) => const DashboardScreen()),
     );
@@ -226,7 +230,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                     Expanded(
                                       child: Text(
                                         'Firebase aún no está conectado en este proyecto. '
-                                        'Usa "Continuar sin cuenta" para probar la app '
+                                        'Usa "Ver demostración sin cuenta" para probar la app '
                                         'mientras tanto.',
                                         style: GoogleFonts.inter(
                                           fontSize: 12,
@@ -397,14 +401,14 @@ class _LoginScreenState extends State<LoginScreen> {
                                 ),
                               ),
                             ),
-                            // Acceso directo solo cuando Firebase no está
-                            // disponible (ver `firebaseReady` en main.dart).
-                            if (!firebaseReady) ...[
+                            // Modo demo con datos de prueba: sirve para
+                            // presentar la app sin red ni cuenta.
+                            ...[
                             const SizedBox(height: 4),
                             TextButton(
                               onPressed: _loading ? null : _continueWithoutAccount,
                               child: Text(
-                                'Continuar sin cuenta (modo desarrollo)',
+                                'Ver demostración sin cuenta',
                                 textAlign: TextAlign.center,
                                 style: GoogleFonts.inter(
                                   fontSize: 12,

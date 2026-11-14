@@ -35,9 +35,8 @@ void main() async {
 
   await AppThemeController.init();
   await SensorDataController.instance.init();
-  // Suscripción en tiempo real al estado de las zonas (por ahora, la fuente
-  // de prueba; ver SensorDataController).
-  SensorDataController.instance.start();
+  // La suscripción a los sensores arranca cuando GreenhouseSession elige el
+  // invernadero del usuario (HomeGate) o al entrar al modo demo.
   await NotificationService.instance.init();
 
   runApp(const MyApp());

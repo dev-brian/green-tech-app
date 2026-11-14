@@ -43,7 +43,7 @@ class FirebaseService {
   void _ensureReady() {
     if (!firebaseReady) {
       throw const AuthException('firebase-not-ready',
-          'Firebase no está disponible. Usa "Continuar sin cuenta"');
+          'Firebase no está disponible. Usa "Ver demostración sin cuenta"');
     }
   }
 

@@ -14,16 +14,17 @@ import 'zone_status_source.dart';
 
 /// Fuente única del estado "activo" del invernadero.
 ///
-/// Las zonas llegan en tiempo real desde un [ZoneStatusSource]: por ahora
-/// [MockZoneStatusSource] (datos de prueba); para usar Firestore basta con
-/// pasar [FirestoreZoneStatusSource]. Los niveles (semáforo) los calcula el
+/// Las zonas llegan en tiempo real desde un [ZoneStatusSource]:
+/// [FirestoreZoneStatusSource] con sesión iniciada o [MockZoneStatusSource]
+/// en el modo demo. Quien elige la fuente y el invernadero es
+/// `GreenhouseSession`. Los niveles (semáforo) los calcula el
 /// backend; aquí solo se leen. Dashboard, Detalle y Alertas leen todos de
 /// aquí, así que siempre están sincronizados entre sí.
 class SensorDataController {
   SensorDataController._internal({
     ZoneStatusSource? source,
     this.offlineDelay = const Duration(seconds: 3),
-  }) : source = source ?? MockZoneStatusSource();
+  }) : _source = source ?? MockZoneStatusSource();
   static final SensorDataController instance =
       SensorDataController._internal();
 
@@ -42,10 +43,39 @@ class SensorDataController {
   /// parpadearía en cada arranque.
   final Duration offlineDelay;
 
-  /// Id de `greenhouses/{id}`, el mismo que usa la web.
-  static const String defaultGreenhouseId = 'axtR6p9ocsE0L79H5wbN';
+  /// Id inicial, antes de que `GreenhouseSession` elija el invernadero
+  /// real del usuario (`greenhouses/{id}`, el mismo que usa la web).
+  static const String defaultGreenhouseId = 'demo';
 
-  final ZoneStatusSource source;
+  ZoneStatusSource _source;
+  ZoneStatusSource get source => _source;
+
+  /// Cambia la fuente de datos (real o de prueba). Corta la suscripción
+  /// actual y borra el estado en memoria; hay que llamar a [start] después.
+  void useSource(ZoneStatusSource source) {
+    if (identical(source, _source)) return;
+    _subscription?.cancel();
+    _subscription = null;
+    _source = source;
+    _clearState();
+  }
+
+  /// Corta la suscripción y olvida el estado (al cerrar sesión).
+  Future<void> reset() async {
+    await stop();
+    _clearState();
+  }
+
+  void _clearState() {
+    zones.value = const {};
+    currentZone.value = null;
+    alerts.value = const [];
+    error.value = null;
+    offline.value = false;
+    loading.value = false;
+    _selectedZoneId = null;
+    _ultimoNivelNotificado.clear();
+  }
 
   // --- Zonas del invernadero ---
   final ValueNotifier<Map<String, ZoneStatus>> zones = ValueNotifier(const {});
@@ -108,6 +138,10 @@ class SensorDataController {
   /// nuevo cancela la suscripción anterior (sirve como "reintentar" o para
   /// cambiar de invernadero).
   Future<void> start({String? greenhouseId}) async {
+    if (greenhouseId != null && greenhouseId != _greenhouseId) {
+      // Otro invernadero: no mezclar sus zonas con las del anterior.
+      _clearState();
+    }
     _greenhouseId = greenhouseId ?? _greenhouseId;
     await _subscription?.cancel();
     _subscription = null;
