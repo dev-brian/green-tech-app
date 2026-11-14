@@ -84,7 +84,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                   const SizedBox(height: 24),
                   Text(
                     'GREEN TECH',
-                    style: GoogleFonts.poppins(
+                    style: GoogleFonts.plusJakartaSans(
                       color: Colors.white,
                       fontSize: 28,
                       fontWeight: FontWeight.w900,
@@ -94,7 +94,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                   const SizedBox(height: 8),
                   Text(
                     'Monitoreo inteligente de cultivos',
-                    style: GoogleFonts.inter(
+                    style: GoogleFonts.plusJakartaSans(
                       color: Colors.white.withValues(alpha: 0.85),
                       fontSize: 14,
                       fontWeight: FontWeight.w400,

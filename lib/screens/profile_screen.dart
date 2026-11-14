@@ -100,14 +100,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
       appBar: AppBar(
         title: Text(
           'Perfil de Usuario',
-          style: GoogleFonts.poppins(fontWeight: FontWeight.w700),
+          style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700),
         ),
-        backgroundColor: AppColors.secondary,
         actions: [
           IconButton(
             icon: Icon(
               isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
-              color: Colors.white,
             ),
             onPressed: () => AppThemeController.toggleTheme(),
           ),
@@ -181,7 +179,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       const SizedBox(height: 16),
                       Text(
                         email,
-                        style: GoogleFonts.poppins(
+                        style: GoogleFonts.plusJakartaSans(
                           fontWeight: FontWeight.w700,
                           fontSize: 18,
                           color: textColor,
@@ -195,7 +193,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               ? 'Sin invernadero'
                               : '${gh.role.label} · ${gh.name}',
                           textAlign: TextAlign.center,
-                          style: GoogleFonts.inter(
+                          style: GoogleFonts.plusJakartaSans(
                             color: subtextColor,
                             fontSize: 13,
                           ),
@@ -218,7 +216,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       Text(
                         'Plantas, umbrales y miembros se gestionan en la PWA.',
                         textAlign: TextAlign.center,
-                        style: GoogleFonts.inter(
+                        style: GoogleFonts.plusJakartaSans(
                           color: subtextColor,
                           fontSize: 12,
                         ),
@@ -230,7 +228,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               const SizedBox(height: 24),
               Text(
                 'Preferencias de la Aplicación',
-                style: GoogleFonts.poppins(
+                style: GoogleFonts.plusJakartaSans(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
                   color: textColor,
@@ -248,7 +246,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     SwitchListTile(
                       title: Text(
                         'Modo Oscuro Neumórfico',
-                        style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600, color: textColor),
+                        style: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.w600, color: textColor),
                       ),
                       secondary: Icon(
                         isDark ? Icons.dark_mode_rounded : Icons.light_mode_rounded,
@@ -263,7 +261,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       SwitchListTile(
                         title: Text(
                           'Avisar alertas críticas: ${v.spec.label}',
-                          style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w500, color: textColor),
+                          style: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.w500, color: textColor),
                         ),
                         value: _controller.notifEnabled(v),
                         activeThumbColor: AppColors.primary,
@@ -279,7 +277,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 icon: const Icon(Icons.logout, color: AppColors.critico),
                 label: Text(
                   'Cerrar sesión',
-                  style: GoogleFonts.inter(
+                  style: GoogleFonts.plusJakartaSans(
                     color: AppColors.critico,
                     fontWeight: FontWeight.w600,
                   ),

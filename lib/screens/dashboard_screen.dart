@@ -11,7 +11,7 @@ import '../services/sensor_data_controller.dart';
 import '../utils/colors.dart';
 import '../utils/neumorphism.dart';
 import '../widgets/live_clock.dart';
-import '../widgets/variable_card.dart';
+import '../widgets/que_hacer_section.dart';
 import '../widgets/zone_section.dart';
 import 'alerts_screen.dart';
 import 'greenhouse_gate_screen.dart';
@@ -74,7 +74,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               children: [
                 Text(
                   'GREEN TECH',
-                  style: GoogleFonts.poppins(
+                  style: GoogleFonts.plusJakartaSans(
                     fontWeight: FontWeight.w800,
                     letterSpacing: 1.2,
                   ),
@@ -87,7 +87,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         child: Text(
                           gh.name,
                           overflow: TextOverflow.ellipsis,
-                          style: GoogleFonts.inter(
+                          style: GoogleFonts.plusJakartaSans(
                               fontSize: 12, fontWeight: FontWeight.w500),
                         ),
                       ),
@@ -99,14 +99,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
           ),
         ),
-        backgroundColor: AppColors.secondary,
         actions: [
           if (_controller.source case final MockZoneStatusSource mock)
             _buildScenarioMenu(mock),
           IconButton(
             icon: Icon(
               isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
-              color: Colors.white,
             ),
             tooltip: isDark ? 'Cambiar a Modo Claro' : 'Cambiar a Modo Oscuro',
             onPressed: () => AppThemeController.toggleTheme(),
@@ -180,9 +178,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                   crossAxisAlignment:
                                       CrossAxisAlignment.stretch,
                                   children: [
-                                    _buildSummary(ordenadas, now, isDark),
+                                    ResumenHoy(zonas: ordenadas, now: now),
+                                    QueHacerSection(
+                                      zonas: ordenadas,
+                                      now: now,
+                                      onOpenZone: _openZone,
+                                    ),
+                                    const SizedBox(height: 22),
+                                    const TituloSeccion('Tus zonas'),
                                     for (final zone in ordenadas) ...[
-                                      const SizedBox(height: 16),
+                                      const SizedBox(height: 12),
                                       Container(
                                         padding: const EdgeInsets.all(14),
                                         decoration:
@@ -216,11 +221,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
       bottomNavigationBar: NavigationBar(
         selectedIndex: _navIndex,
         onDestinationSelected: _onNavTap,
-        indicatorColor: AppColors.mintAccent.withValues(alpha: 0.3),
         destinations: const [
           NavigationDestination(
               icon: Icon(Icons.dashboard_outlined),
-              selectedIcon: Icon(Icons.dashboard, color: AppColors.secondary),
+              selectedIcon: Icon(Icons.dashboard),
               label: 'Inicio'),
           NavigationDestination(
               icon: _AlertasIcon(), label: 'Alertas'),
@@ -244,7 +248,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             const SizedBox(height: 12),
             Text(
               'No se pudieron cargar los sensores',
-              style: GoogleFonts.poppins(
+              style: GoogleFonts.plusJakartaSans(
                 fontSize: 16,
                 fontWeight: FontWeight.w700,
                 color: textColor,
@@ -254,7 +258,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             const SizedBox(height: 6),
             Text(
               message,
-              style: GoogleFonts.inter(fontSize: 13, color: subtextColor),
+              style: GoogleFonts.plusJakartaSans(fontSize: 13, color: subtextColor),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 18),
@@ -288,7 +292,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             const SizedBox(height: 12),
             Text(
               'Esperando datos del invernadero…',
-              style: GoogleFonts.poppins(
+              style: GoogleFonts.plusJakartaSans(
                 fontSize: 16,
                 fontWeight: FontWeight.w700,
                 color: textColor,
@@ -299,7 +303,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             Text(
               'Aún no llega el estado de las zonas. '
               'Aparecerá aquí automáticamente.',
-              style: GoogleFonts.inter(fontSize: 13, color: subtextColor),
+              style: GoogleFonts.plusJakartaSans(fontSize: 13, color: subtextColor),
               textAlign: TextAlign.center,
             ),
           ],
@@ -334,7 +338,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               child: Text(
                 'Sin conexión · datos de las '
                 '${DateFormat('HH:mm').format(ultimaLectura)}',
-                style: GoogleFonts.inter(
+                style: GoogleFonts.plusJakartaSans(
                   fontSize: 14,
                   fontWeight: FontWeight.w700,
                   color: color,
@@ -358,7 +362,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           child: Text(
             'Modo demostración: datos de prueba. Usa el matraz para '
             'forzar escenarios.',
-            style: GoogleFonts.inter(fontSize: 12, color: color),
+            style: GoogleFonts.plusJakartaSans(fontSize: 12, color: color),
           ),
         ),
       ],
@@ -381,63 +385,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
           Expanded(
             child: Text(
               'No se pudo actualizar los sensores: $message',
-              style: GoogleFonts.inter(
+              style: GoogleFonts.plusJakartaSans(
                   fontSize: 13, fontWeight: FontWeight.w600, color: color),
             ),
           ),
         ],
       ),
-    );
-  }
-
-  /// Resumen arriba de las zonas: estado de la peor zona y cuántas zonas
-  /// necesitan atención.
-  Widget _buildSummary(List<ZoneStatus> ordenadas, DateTime now, bool isDark) {
-    final textColor = isDark ? AppColors.darkTextPrimary : AppColors.textPrimary;
-    final subtextColor = isDark ? AppColors.darkTextSecondary : AppColors.textSecondary;
-    final peor = ordenadas.first;
-    final atencion = ordenadas
-        .where((z) =>
-            lecturaDesactualizada(z.timestamp, now) ||
-            z.overallLevel != EstadoNivel.normal)
-        .length;
-    final total = ordenadas.length;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Estado del invernadero',
-          style: GoogleFonts.poppins(
-            fontSize: 22,
-            fontWeight: FontWeight.w700,
-            color: textColor,
-          ),
-        ),
-        const SizedBox(height: 6),
-        Wrap(
-          spacing: 10,
-          runSpacing: 6,
-          crossAxisAlignment: WrapCrossAlignment.center,
-          children: [
-            EstadoPill(
-              estado: peor.overallLevel,
-              desactualizada: lecturaDesactualizada(peor.timestamp, now),
-            ),
-            Text(
-              atencion == 0
-                  ? '$total ${total == 1 ? 'zona' : 'zonas'} en orden'
-                  : '$atencion de $total ${total == 1 ? 'zona' : 'zonas'} '
-                      'requieren atención',
-              style: GoogleFonts.inter(
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-                color: subtextColor,
-              ),
-            ),
-          ],
-        ),
-      ],
     );
   }
 
