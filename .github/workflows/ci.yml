@@ -1,0 +1,95 @@
+name: CI
+
+# Revisa cada pull request y cada push a ramas de trabajo de la app Flutter:
+# formato, análisis estático (flutter_lints), pruebas y un APK debug.
+on:
+  pull_request:
+    branches: ['main', 'develop']
+  push:
+    branches: ['feature/**', 'feat/**', 'fix/**', 'chore/**', 'hotfix/**']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Misma versión con la que se generó pubspec.lock (Dart 3.12).
+  FLUTTER_VERSION: '3.44.9'
+
+jobs:
+  test:
+    name: analyze + test
+    runs-on: ubuntu-latest
+    env:
+      SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+
+      - name: Instalar dependencias
+        run: flutter pub get --enforce-lockfile
+
+      - name: Análisis estático
+        run: flutter analyze
+
+      - name: Pruebas (adapters, repositorios, semáforo y widgets)
+        run: flutter test --reporter expanded
+
+      - name: Avisar a Slack (éxito)
+        if: success() && env.SLACK_WEBHOOK_URL != ''
+        run: |
+          curl -sS -X POST -H 'Content-type: application/json' \
+            --data "{\"text\":\":white_check_mark: CI app en verde en ${GITHUB_REF_NAME} (${GITHUB_ACTOR}): ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}\"}" \
+            "$SLACK_WEBHOOK_URL"
+
+      - name: Avisar a Slack (falla)
+        if: failure() && env.SLACK_WEBHOOK_URL != ''
+        run: |
+          curl -sS -X POST -H 'Content-type: application/json' \
+            --data "{\"text\":\":x: CI app falló en ${GITHUB_REF_NAME} (${GITHUB_ACTOR}): ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}\"}" \
+            "$SLACK_WEBHOOK_URL"
+
+  build-apk:
+    name: build APK (debug)
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+
+      - name: Instalar dependencias
+        run: flutter pub get --enforce-lockfile
+
+      - name: Compilar APK debug
+        run: flutter build apk --debug
+
+      - name: Subir APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: greentech-app-debug-apk
+          path: build/app/outputs/flutter-apk/app-debug.apk
+          retention-days: 7

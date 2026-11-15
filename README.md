@@ -3,6 +3,17 @@
 Proyecto base en Flutter siguiendo la arquitectura definida: Splash → Login/Registro →
 Dashboard → Detalle de zona → Alertas → Perfil.
 
+## 🧪 Integración continua
+
+Cada pull request a `develop` o `main` (y cada push a ramas `feature/`, `feat/`, `fix/`, `chore/`) corre [`.github/workflows/ci.yml`](.github/workflows/ci.yml) con Flutter 3.44.9:
+
+1. `flutter pub get --enforce-lockfile`
+2. `flutter analyze` (reglas de `flutter_lints`)
+3. `flutter test`
+4. `flutter build apk --debug` (el APK queda como artefacto del run por 7 días)
+
+Si el repo tiene el secreto `SLACK_WEBHOOK_URL`, el resultado se avisa en Slack.
+
 ## 🚀 Cómo correrlo
 
 1. Instala Flutter (https://docs.flutter.dev/get-started/install) si no lo tienes.
