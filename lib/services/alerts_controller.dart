@@ -47,6 +47,11 @@ class AlertsController {
   StreamSubscription<AlertsSnapshot>? _sub;
   String? _greenhouseId;
 
+  /// true si la bandeja ya escucha [greenhouseId] en vivo: entonces ella
+  /// misma avisa la alerta y el push en primer plano no se repite.
+  bool escucha(String? greenhouseId) =>
+      _sub != null && greenhouseId != null && greenhouseId == _greenhouseId;
+
   /// Nivel con el que ya se avisó cada alerta abierta. Sirve para notificar
   /// solo lo nuevo (o lo que empeoró de aviso a crítica).
   final Map<String, EstadoNivel> _avisadas = {};
