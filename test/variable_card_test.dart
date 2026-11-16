@@ -29,7 +29,7 @@ void main() {
       expect(find.text('pH'), findsOneWidget);
       expect(find.text('7.6'), findsOneWidget);
       expect(find.text('Crítico'), findsOneWidget);
-      expect(find.byIcon(Icons.error_rounded), findsOneWidget);
+      expect(find.byIcon(Icons.report_rounded), findsOneWidget);
       expect(tester.getSemantics(find.byType(VariableCard)).label,
           'pH: 7.6. Crítico');
       expect(tester.takeException(), isNull);
@@ -42,7 +42,7 @@ void main() {
         measurement: Measurement(value: 0.8, level: EstadoNivel.alerta),
       )));
 
-      final estado = tester.widget<Text>(find.text('Alerta'));
+      final estado = tester.widget<Text>(find.text('Atención'));
       expect(estado.style?.color,
           AppColors.estadoTexto(EstadoNivel.alerta, isDark: false));
       expect(find.text('mS/cm'), findsOneWidget);

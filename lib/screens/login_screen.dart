@@ -193,7 +193,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                   ? 'Crear cuenta'
                                   : 'Bienvenido de nuevo',
                               textAlign: TextAlign.center,
-                              style: GoogleFonts.poppins(
+                              style: GoogleFonts.plusJakartaSans(
                                 fontSize: 22,
                                 fontWeight: FontWeight.w700,
                                 color: textColor,
@@ -205,7 +205,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                   ? 'Regístrate para monitorear tus cultivos'
                                   : 'Inicia sesión para ver tus sensores',
                               textAlign: TextAlign.center,
-                              style: GoogleFonts.inter(
+                              style: GoogleFonts.plusJakartaSans(
                                 fontSize: 14,
                                 color: subtextColor,
                               ),
@@ -234,7 +234,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                         'Firebase aún no está conectado en este proyecto. '
                                         'Usa "Continuar sin cuenta" para probar la app '
                                         'mientras tanto.',
-                                        style: GoogleFonts.inter(
+                                        style: GoogleFonts.plusJakartaSans(
                                           fontSize: 12,
                                           color: textColor,
                                         ),
@@ -251,11 +251,11 @@ class _LoginScreenState extends State<LoginScreen> {
                               keyboardType: TextInputType.emailAddress,
                               textInputAction: TextInputAction.next,
                               autofillHints: const [AutofillHints.email],
-                              style: GoogleFonts.inter(
+                              style: GoogleFonts.plusJakartaSans(
                                   fontSize: 14, color: textColor),
                               decoration: InputDecoration(
                                 labelText: 'Correo electrónico',
-                                labelStyle: GoogleFonts.inter(
+                                labelStyle: GoogleFonts.plusJakartaSans(
                                     fontSize: 14, color: subtextColor),
                                 prefixIcon: const Icon(
                                   Icons.email_outlined,
@@ -282,11 +282,11 @@ class _LoginScreenState extends State<LoginScreen> {
                               onFieldSubmitted: (_) {
                                 if (!_loading) _submit();
                               },
-                              style: GoogleFonts.inter(
+                              style: GoogleFonts.plusJakartaSans(
                                   fontSize: 14, color: textColor),
                               decoration: InputDecoration(
                                 labelText: 'Contraseña',
-                                labelStyle: GoogleFonts.inter(
+                                labelStyle: GoogleFonts.plusJakartaSans(
                                     fontSize: 14, color: subtextColor),
                                 prefixIcon: const Icon(
                                   Icons.lock_outline,
@@ -321,7 +321,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                       _loading ? null : _openForgotPassword,
                                   child: Text(
                                     '¿Olvidaste tu contraseña?',
-                                    style: GoogleFonts.inter(
+                                    style: GoogleFonts.plusJakartaSans(
                                       fontSize: 13,
                                       color: AppColors.secondary,
                                       fontWeight: FontWeight.w600,
@@ -333,7 +333,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               const SizedBox(height: 14),
                               Text(
                                 _errorMsg!,
-                                style: GoogleFonts.inter(
+                                style: GoogleFonts.plusJakartaSans(
                                   color: AppColors.critico,
                                   fontSize: 13,
                                   fontWeight: FontWeight.w500,
@@ -355,7 +355,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                 _isRegisterMode
                                     ? 'Registrarse'
                                     : 'Iniciar sesión',
-                                style: GoogleFonts.poppins(
+                                style: GoogleFonts.plusJakartaSans(
                                   fontSize: 15,
                                   fontWeight: FontWeight.w600,
                                 ),
@@ -369,7 +369,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                   color: AppColors.secondary),
                               label: Text(
                                 'Iniciar sesión con Google',
-                                style: GoogleFonts.inter(
+                                style: GoogleFonts.plusJakartaSans(
                                   fontSize: 14,
                                   color: textColor,
                                   fontWeight: FontWeight.w600,
@@ -396,7 +396,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                 _isRegisterMode
                                     ? '¿Ya tienes cuenta? Inicia sesión'
                                     : '¿No tienes cuenta? Regístrate',
-                                style: GoogleFonts.inter(
+                                style: GoogleFonts.plusJakartaSans(
                                   fontSize: 14,
                                   color: AppColors.secondary,
                                   fontWeight: FontWeight.w600,
@@ -412,7 +412,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               child: Text(
                                 'Ver demostración sin cuenta',
                                 textAlign: TextAlign.center,
-                                style: GoogleFonts.inter(
+                                style: GoogleFonts.plusJakartaSans(
                                   fontSize: 12,
                                   color: subtextColor,
                                   fontWeight: FontWeight.w500,

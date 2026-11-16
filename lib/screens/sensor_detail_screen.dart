@@ -37,14 +37,12 @@ class _SensorDetailScreenState extends State<SensorDetailScreen> {
       appBar: AppBar(
         title: Text(
           'Detalle de la Zona',
-          style: GoogleFonts.poppins(fontWeight: FontWeight.w700),
+          style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700),
         ),
-        backgroundColor: AppColors.secondary,
         actions: [
           IconButton(
             icon: Icon(
               isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
-              color: Colors.white,
             ),
             onPressed: () => AppThemeController.toggleTheme(),
           ),
@@ -97,14 +95,14 @@ class _SensorDetailScreenState extends State<SensorDetailScreen> {
                                     children: [
                                       Text(
                                         'Zona',
-                                        style: GoogleFonts.inter(
+                                        style: GoogleFonts.plusJakartaSans(
                                           fontSize: 13,
                                           color: subtextColor,
                                         ),
                                       ),
                                       Text(
                                         r.zoneId,
-                                        style: GoogleFonts.poppins(
+                                        style: GoogleFonts.plusJakartaSans(
                                           fontWeight: FontWeight.w700,
                                           fontSize: 18,
                                           color: textColor,
@@ -138,7 +136,7 @@ class _SensorDetailScreenState extends State<SensorDetailScreen> {
                     const SizedBox(height: 24),
                     Text(
                       'Lecturas actuales',
-                      style: GoogleFonts.poppins(
+                      style: GoogleFonts.plusJakartaSans(
                         fontSize: 18,
                         fontWeight: FontWeight.w700,
                         color: textColor,
@@ -189,11 +187,11 @@ class _SensorDetailScreenState extends State<SensorDetailScreen> {
           child: Text.rich(
             TextSpan(
               text: '$label: ',
-              style: GoogleFonts.inter(color: subtextColor, fontSize: 13),
+              style: GoogleFonts.plusJakartaSans(color: subtextColor, fontSize: 13),
               children: [
                 TextSpan(
                   text: value,
-                  style: GoogleFonts.inter(
+                  style: GoogleFonts.plusJakartaSans(
                     fontWeight: FontWeight.w600,
                     fontSize: 13,
                     color: textColor,
@@ -237,7 +235,7 @@ class _SensorDetailScreenState extends State<SensorDetailScreen> {
           Expanded(
             child: Text(
               label,
-              style: GoogleFonts.inter(
+              style: GoogleFonts.plusJakartaSans(
                 fontWeight: FontWeight.w500,
                 fontSize: 14,
                 color: textColor,
@@ -246,7 +244,7 @@ class _SensorDetailScreenState extends State<SensorDetailScreen> {
           ),
           Text(
             value,
-            style: GoogleFonts.poppins(
+            style: GoogleFonts.plusJakartaSans(
               fontWeight: FontWeight.w700,
               color: color,
               fontSize: 16,

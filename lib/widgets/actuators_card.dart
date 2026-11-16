@@ -65,19 +65,19 @@ class _ActuatorsCardState extends State<ActuatorsCard> {
                 children: [
                   Expanded(
                     child: Text('Actuadores',
-                        style: GoogleFonts.poppins(
+                        style: GoogleFonts.plusJakartaSans(
                             fontSize: 18,
                             fontWeight: FontWeight.w700,
                             color: textColor)),
                   ),
                   Text('Solo lectura',
-                      style: GoogleFonts.inter(fontSize: 12, color: subtextColor)),
+                      style: GoogleFonts.plusJakartaSans(fontSize: 12, color: subtextColor)),
                 ],
               ),
               const SizedBox(height: 8),
               if (snap.hasError)
                 Text('No se pudo leer el estado de los actuadores.',
-                    style: GoogleFonts.inter(fontSize: 13, color: subtextColor))
+                    style: GoogleFonts.plusJakartaSans(fontSize: 13, color: subtextColor))
               else if (snap.connectionState == ConnectionState.waiting)
                 const Padding(
                   padding: EdgeInsets.all(12),
@@ -86,7 +86,7 @@ class _ActuatorsCardState extends State<ActuatorsCard> {
                 )
               else if (data == null)
                 Text('Esta zona aún no reporta actuadores.',
-                    style: GoogleFonts.inter(fontSize: 13, color: subtextColor))
+                    style: GoogleFonts.plusJakartaSans(fontSize: 13, color: subtextColor))
               else ...[
                 for (final kind in ActuatorKind.values)
                   _fila(kind, data[kind], isDark, textColor, subtextColor),
@@ -96,7 +96,7 @@ class _ActuatorsCardState extends State<ActuatorsCard> {
                       padding: const EdgeInsets.only(top: 6),
                       child: Text(
                           'Actualizado: ${formatHace(data.updatedAt!, now)}',
-                          style: GoogleFonts.inter(
+                          style: GoogleFonts.plusJakartaSans(
                               fontSize: 12, color: subtextColor)),
                     ),
                   ),
@@ -122,7 +122,7 @@ class _ActuatorsCardState extends State<ActuatorsCard> {
           const SizedBox(width: 12),
           Expanded(
             child: Text(kind.label,
-                style: GoogleFonts.inter(fontSize: 14, color: textColor)),
+                style: GoogleFonts.plusJakartaSans(fontSize: 14, color: textColor)),
           ),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -132,7 +132,7 @@ class _ActuatorsCardState extends State<ActuatorsCard> {
             ),
             child: Text(
               on == null ? 'Sin dato' : (on ? 'Encendido' : 'Apagado'),
-              style: GoogleFonts.inter(
+              style: GoogleFonts.plusJakartaSans(
                   fontSize: 12, fontWeight: FontWeight.w600, color: color),
             ),
           ),
