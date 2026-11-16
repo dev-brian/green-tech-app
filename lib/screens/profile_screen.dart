@@ -8,10 +8,13 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../config/variable_config.dart';
 import '../models/zone_status.dart';
+import '../models/greenhouse.dart';
 import '../services/firebase_service.dart';
+import '../services/greenhouse_session.dart';
 import '../services/sensor_data_controller.dart';
 import '../utils/colors.dart';
 import '../utils/neumorphism.dart';
+import 'greenhouse_gate_screen.dart';
 import 'login_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -72,6 +75,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _signOut() async {
+    await GreenhouseSession.instance.clear();
     await FirebaseService.instance.signOut();
     if (!mounted) return;
     Navigator.of(context).pushAndRemoveUntil(
@@ -84,7 +88,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final email =
-        FirebaseService.instance.currentUserEmail ?? 'usuario@greentech.com';
+        FirebaseService.instance.currentUserEmail ?? 'Modo demostración';
+    final session = GreenhouseSession.instance;
 
     final textColor = isDark ? AppColors.darkTextPrimary : AppColors.textPrimary;
     final subtextColor = isDark ? AppColors.darkTextSecondary : AppColors.textSecondary;
@@ -183,11 +188,39 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ),
                       ),
                       const SizedBox(height: 4),
+                      ValueListenableBuilder<Greenhouse?>(
+                        valueListenable: session.current,
+                        builder: (context, gh, _) => Text(
+                          gh == null
+                              ? 'Sin invernadero'
+                              : '${gh.role.label} · ${gh.name}',
+                          textAlign: TextAlign.center,
+                          style: GoogleFonts.inter(
+                            color: subtextColor,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ),
+                      if (!session.isDemo) ...[
+                        const SizedBox(height: 8),
+                        TextButton.icon(
+                          onPressed: () => Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) =>
+                                  const GreenhouseGateScreen(cambiar: true),
+                            ),
+                          ),
+                          icon: const Icon(Icons.swap_horiz),
+                          label: const Text('Cambiar invernadero'),
+                        ),
+                      ],
+                      const SizedBox(height: 4),
                       Text(
-                        'Productor agrícola · Green Tech',
+                        'Plantas, umbrales y miembros se gestionan en la PWA.',
+                        textAlign: TextAlign.center,
                         style: GoogleFonts.inter(
                           color: subtextColor,
-                          fontSize: 13,
+                          fontSize: 12,
                         ),
                       ),
                     ],
@@ -229,7 +262,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       const Divider(height: 1, indent: 16, endIndent: 16),
                       SwitchListTile(
                         title: Text(
-                          'Alertas: ${v.spec.label}',
+                          'Avisar alertas críticas: ${v.spec.label}',
                           style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w500, color: textColor),
                         ),
                         value: _controller.notifEnabled(v),

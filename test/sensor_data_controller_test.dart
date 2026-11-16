@@ -57,9 +57,9 @@ void main() {
     await source.controller.close();
   });
 
-  test('publica cada estado del stream y genera alertas con su level',
+  test('publica cada estado del stream con el level del backend',
       () async {
-    await sut.start();
+    await sut.start(greenhouseId: 'gh-1');
     expect(sut.loading.value, isTrue);
 
     source.controller.add(_snap([_zona('zona-1')]));
@@ -67,7 +67,6 @@ void main() {
 
     expect(sut.loading.value, isFalse);
     expect(sut.currentZone.value?.ph?.value, 6.0);
-    expect(sut.alerts.value.single.nivel, EstadoNivel.normal);
 
     // El nivel lo decide el backend: un pH "normal" marcado como crítico
     // se muestra como crítico, sin que la app lo recalcule.
@@ -76,26 +75,29 @@ void main() {
     await Future<void>.delayed(Duration.zero);
 
     expect(sut.currentZone.value?.overallLevel, EstadoNivel.critico);
-    final alerta = sut.alerts.value.single;
-    expect(alerta.nivel, EstadoNivel.critico);
-    expect(alerta.mensaje, contains('pH'));
-    expect(alerta.mensaje, contains('zona-1'));
   });
 
-  test('genera alertas de todas las zonas', () async {
+  test('sin invernadero elegido no se suscribe', () async {
     await sut.start();
-    source.controller.add(_snap([
-      _zona('zona-1', ph: 7.6, phLevel: EstadoNivel.critico),
-      _zona('zona-2', ph: 6.8, phLevel: EstadoNivel.alerta),
-    ]));
-    await Future<void>.delayed(Duration.zero);
+    expect(source.controller.hasListener, isFalse);
+    expect(sut.error.value, contains('invernadero'));
+  });
 
-    expect(sut.alerts.value.map((a) => a.nivel),
-        [EstadoNivel.critico, EstadoNivel.alerta]);
+  test('al cambiar de invernadero no mezcla las zonas del anterior',
+      () async {
+    await sut.start(greenhouseId: 'gh-1');
+    source.controller.add(_snap([_zona('zona-1')]));
+    await Future<void>.delayed(Duration.zero);
+    expect(sut.zones.value, isNotEmpty);
+
+    await sut.start(greenhouseId: 'gh-2');
+    expect(sut.zones.value, isEmpty);
+    expect(sut.currentZone.value, isNull);
+    expect(sut.greenhouseId, 'gh-2');
   });
 
   test('muestra la primera zona y permite cambiar entre zonas', () async {
-    await sut.start();
+    await sut.start(greenhouseId: 'gh-1');
     source.controller.add(_snap([_zona('zona-2'), _zona('zona-1')]));
     await Future<void>.delayed(Duration.zero);
     expect(sut.currentZone.value?.zoneId, 'zona-1');
@@ -114,7 +116,7 @@ void main() {
   });
 
   test('si el documento desaparece conserva el último estado', () async {
-    await sut.start();
+    await sut.start(greenhouseId: 'gh-1');
     source.controller.add(_snap([_zona('zona-1')]));
     source.controller.add(_snap(const []));
     await Future<void>.delayed(Duration.zero);
@@ -124,7 +126,7 @@ void main() {
   });
 
   test('un error del stream se muestra sin tumbar la app', () async {
-    await sut.start();
+    await sut.start(greenhouseId: 'gh-1');
     source.controller.addError(Exception('permission-denied'));
     await Future<void>.delayed(Duration.zero);
 
@@ -134,7 +136,7 @@ void main() {
 
   test('sin Firebase no se suscribe a una fuente que lo requiere', () async {
     firebaseReady = false;
-    await sut.start();
+    await sut.start(greenhouseId: 'gh-1');
 
     expect(source.controller.hasListener, isFalse);
     expect(sut.loading.value, isFalse);
@@ -156,7 +158,7 @@ void main() {
   group('modo offline (Task 2.3)', () {
     test('avisa "sin conexión" solo con datos de caché y lo quita al volver',
         () async {
-      await sut.start();
+      await sut.start(greenhouseId: 'gh-1');
 
       source.controller.add(_snap([_zona('zona-1')], fromCache: true));
       await Future<void>.delayed(const Duration(milliseconds: 10));
@@ -171,7 +173,7 @@ void main() {
     test('no parpadea si el servidor responde antes del margen', () async {
       final lento = SensorDataController.forTesting(source,
           offlineDelay: const Duration(milliseconds: 200));
-      await lento.start();
+      await lento.start(greenhouseId: 'gh-1');
 
       source.controller.add(_snap([_zona('zona-1')], fromCache: true));
       await Future<void>.delayed(const Duration(milliseconds: 20));
@@ -184,23 +186,22 @@ void main() {
 
     test('guarda el último estado del servidor y lo usa en un arranque en frío',
         () async {
-      await sut.start();
+      await sut.start(greenhouseId: 'gh-1');
       source.controller.add(_snap(
           [_zona('zona-1', ph: 7.4, phLevel: EstadoNivel.critico)]));
       await Future<void>.delayed(const Duration(milliseconds: 10));
 
       final prefs = await SharedPreferences.getInstance();
       final guardado = jsonDecode(prefs.getString(
-              'ultimo_estado_${SensorDataController.defaultGreenhouseId}')!)
+              'ultimo_estado_gh-1')!)
           as Map<String, dynamic>;
       expect(guardado['zona-1']['ph'], {'value': 7.4, 'level': 'critical'});
 
       // Nueva instancia (app reabierta) sin red: aún no llega ningún snapshot.
       final reabierta = SensorDataController.forTesting(_FakeSource());
-      await reabierta.start();
+      await reabierta.start(greenhouseId: 'gh-1');
       expect(reabierta.currentZone.value?.ph,
           const Measurement(value: 7.4, level: EstadoNivel.critico));
-      expect(reabierta.alerts.value.single.nivel, EstadoNivel.critico);
       await reabierta.stop();
     });
   });

@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
+import '../models/greenhouse.dart';
 import '../models/sensor_model.dart';
 import '../models/zone_status.dart';
+import '../services/alerts_controller.dart';
+import '../services/greenhouse_session.dart';
 import '../services/mock_zone_status_source.dart';
 import '../services/sensor_data_controller.dart';
 import '../utils/colors.dart';
@@ -11,6 +14,7 @@ import '../widgets/live_clock.dart';
 import '../widgets/variable_card.dart';
 import '../widgets/zone_section.dart';
 import 'alerts_screen.dart';
+import 'greenhouse_gate_screen.dart';
 import 'profile_screen.dart';
 import 'sensor_detail_screen.dart';
 
@@ -23,8 +27,16 @@ class DashboardScreen extends StatefulWidget {
 
 class _DashboardScreenState extends State<DashboardScreen> {
   final SensorDataController _controller = SensorDataController.instance;
+  final GreenhouseSession _session = GreenhouseSession.instance;
 
   int _navIndex = 0;
+
+  void _cambiarInvernadero() {
+    if (_session.isDemo) return;
+    Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => const GreenhouseGateScreen(cambiar: true),
+    ));
+  }
 
   /// Reintenta la suscripción a los sensores (los datos llegan por stream;
   /// SensorDataController.start se llama en main.dart).
@@ -51,11 +63,40 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return Scaffold(
       backgroundColor: bgColor,
       appBar: AppBar(
-        title: Text(
-          'GREEN TECH',
-          style: GoogleFonts.poppins(
-            fontWeight: FontWeight.w800,
-            letterSpacing: 1.2,
+        title: ValueListenableBuilder<Greenhouse?>(
+          valueListenable: _session.current,
+          builder: (context, gh, _) => InkWell(
+            key: const Key('cambiar_invernadero'),
+            onTap: gh == null || _session.isDemo ? null : _cambiarInvernadero,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'GREEN TECH',
+                  style: GoogleFonts.poppins(
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 1.2,
+                  ),
+                ),
+                if (gh != null)
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Flexible(
+                        child: Text(
+                          gh.name,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.inter(
+                              fontSize: 12, fontWeight: FontWeight.w500),
+                        ),
+                      ),
+                      if (!_session.isDemo)
+                        const Icon(Icons.arrow_drop_down, size: 18),
+                    ],
+                  ),
+              ],
+            ),
           ),
         ),
         backgroundColor: AppColors.secondary,
@@ -121,6 +162,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                     )
                                   : const SizedBox.shrink(),
                             ),
+                            if (_session.isDemo) ...[
+                              _buildDemoBanner(isDark),
+                              const SizedBox(height: 14),
+                            ],
                             if (errorMsg != null) ...[
                               _buildInlineErrorBanner(errorMsg, isDark),
                               const SizedBox(height: 14),
@@ -178,7 +223,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               selectedIcon: Icon(Icons.dashboard, color: AppColors.secondary),
               label: 'Inicio'),
           NavigationDestination(
-              icon: Icon(Icons.notifications_outlined), label: 'Alertas'),
+              icon: _AlertasIcon(), label: 'Alertas'),
           NavigationDestination(
               icon: Icon(Icons.person_outline), label: 'Perfil'),
         ],
@@ -302,6 +347,24 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
+  /// Modo demo: los datos son de prueba, no de un invernadero real.
+  Widget _buildDemoBanner(bool isDark) {
+    final color = isDark ? AppColors.darkTextSecondary : AppColors.textSecondary;
+    return Row(
+      children: [
+        Icon(Icons.science_outlined, size: 18, color: color),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            'Modo demostración: datos de prueba. Usa el matraz para '
+            'forzar escenarios.',
+            style: GoogleFonts.inter(fontSize: 12, color: color),
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildInlineErrorBanner(String message, bool isDark) {
     final color = AppColors.estadoTexto(EstadoNivel.critico, isDark: isDark);
     return Container(
@@ -400,5 +463,28 @@ class _DashboardScreenState extends State<DashboardScreen> {
     _controller.selectZone(zoneId);
     Navigator.of(context)
         .push(MaterialPageRoute(builder: (_) => const SensorDetailScreen()));
+  }
+}
+
+/// Ícono de Alertas con el número de alertas abiertas (Observer sobre
+/// AlertsController).
+class _AlertasIcon extends StatelessWidget {
+  const _AlertasIcon();
+
+  @override
+  Widget build(BuildContext context) {
+    final alerts = AlertsController.instance;
+    return ValueListenableBuilder<List<AlertItem>>(
+      valueListenable: alerts.alerts,
+      builder: (context, _, __) {
+        final n = alerts.activas;
+        return Badge(
+          isLabelVisible: n > 0,
+          label: Text(n > 99 ? '99+' : '$n'),
+          backgroundColor: AppColors.critico,
+          child: const Icon(Icons.notifications_outlined),
+        );
+      },
+    );
   }
 }
