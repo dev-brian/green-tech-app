@@ -237,20 +237,25 @@ class _GreenhouseGateScreenState extends State<GreenhouseGateScreen> {
               child: Container(
                 decoration: NeumorphismDecoration.extruded(
                     context: context, isDark: isDark, borderRadius: 16),
-                child: ListTile(
-                  key: Key('invernadero_${g.id}'),
-                  contentPadding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                  leading: const Icon(Icons.eco, color: AppColors.primary),
-                  title: Text(g.name,
-                      style: GoogleFonts.plusJakartaSans(
-                          fontWeight: FontWeight.w600, color: textColor)),
-                  subtitle: Text(g.role.label,
-                      style: GoogleFonts.plusJakartaSans(color: subtextColor)),
-                  trailing: _session.current.value?.id == g.id
-                      ? const Icon(Icons.check_circle, color: AppColors.primary)
-                      : const Icon(Icons.chevron_right),
-                  onTap: _ocupado ? null : () => _elegir(g),
+                // Material propio: así el fondo de la tarjeta no
+                // tapa el efecto de toque del ListTile.
+                child: Material(
+                  type: MaterialType.transparency,
+                  child: ListTile(
+                    key: Key('invernadero_${g.id}'),
+                    contentPadding:
+                        const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                    leading: const Icon(Icons.eco, color: AppColors.primary),
+                    title: Text(g.name,
+                        style: GoogleFonts.plusJakartaSans(
+                            fontWeight: FontWeight.w600, color: textColor)),
+                    subtitle: Text(g.role.label,
+                        style: GoogleFonts.plusJakartaSans(color: subtextColor)),
+                    trailing: _session.current.value?.id == g.id
+                        ? const Icon(Icons.check_circle, color: AppColors.primary)
+                        : const Icon(Icons.chevron_right),
+                    onTap: _ocupado ? null : () => _elegir(g),
+                  ),
                 ),
               ),
             ),
