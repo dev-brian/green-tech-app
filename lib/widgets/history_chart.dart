@@ -60,7 +60,7 @@ class _HistorySectionState extends State<HistorySection> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text('Histórico',
-              style: GoogleFonts.poppins(
+              style: GoogleFonts.plusJakartaSans(
                   fontSize: 18, fontWeight: FontWeight.w700, color: textColor)),
           const SizedBox(height: 10),
           SegmentedButton<HistoryRange>(
@@ -132,7 +132,7 @@ class _HistorySectionState extends State<HistorySection> {
   Widget _mensaje(String texto, Color color) => Center(
         child: Text(texto,
             textAlign: TextAlign.center,
-            style: GoogleFonts.inter(fontSize: 13, color: color)),
+            style: GoogleFonts.plusJakartaSans(fontSize: 13, color: color)),
       );
 }
 
@@ -220,7 +220,7 @@ class HistoryChart extends StatelessWidget {
               getTitlesWidget: (v, meta) => SideTitleWidget(
                 meta: meta,
                 child: Text(spec.format(v),
-                    style: GoogleFonts.inter(fontSize: 10, color: subtextColor)),
+                    style: GoogleFonts.plusJakartaSans(fontSize: 10, color: subtextColor)),
               ),
             ),
           ),
@@ -234,7 +234,7 @@ class HistoryChart extends StatelessWidget {
                 child: Text(
                   etiquetaX.format(
                       DateTime.fromMillisecondsSinceEpoch((v * 60000).round())),
-                  style: GoogleFonts.inter(fontSize: 10, color: subtextColor),
+                  style: GoogleFonts.plusJakartaSans(fontSize: 10, color: subtextColor),
                 ),
               ),
             ),
@@ -247,7 +247,7 @@ class HistoryChart extends StatelessWidget {
                 s.barIndex == 0
                     ? LineTooltipItem(
                         '${spec.display(s.y)}\n${etiquetaX.format(DateTime.fromMillisecondsSinceEpoch((s.x * 60000).round()))}',
-                        GoogleFonts.inter(
+                        GoogleFonts.plusJakartaSans(
                             fontSize: 12,
                             color: Colors.white,
                             fontWeight: FontWeight.w600),

@@ -75,7 +75,7 @@ class AlertTile extends StatelessWidget {
                   children: [
                     Text(
                       alert.mensaje,
-                      style: GoogleFonts.poppins(
+                      style: GoogleFonts.plusJakartaSans(
                         fontWeight: FontWeight.w600,
                         fontSize: 14,
                         color: textColor,
@@ -84,7 +84,7 @@ class AlertTile extends StatelessWidget {
                     const SizedBox(height: 4),
                     Text(
                       detalle,
-                      style: GoogleFonts.inter(
+                      style: GoogleFonts.plusJakartaSans(
                         fontSize: 12,
                         fontWeight: FontWeight.w400,
                         color: subtextColor,
@@ -102,7 +102,7 @@ class AlertTile extends StatelessWidget {
                 ),
                 child: Text(
                   estadoLabel(alert),
-                  style: GoogleFonts.inter(
+                  style: GoogleFonts.plusJakartaSans(
                     fontSize: 11,
                     fontWeight: FontWeight.w600,
                     color: badgeColor,

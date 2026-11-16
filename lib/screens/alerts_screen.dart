@@ -112,14 +112,12 @@ class _AlertsScreenState extends State<AlertsScreen> {
       appBar: AppBar(
         title: Text(
           'Alertas de Cultivo',
-          style: GoogleFonts.poppins(fontWeight: FontWeight.w700),
+          style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700),
         ),
-        backgroundColor: AppColors.secondary,
         actions: [
           IconButton(
             icon: Icon(
               isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
-              color: Colors.white,
             ),
             onPressed: () => AppThemeController.toggleTheme(),
           ),
@@ -156,7 +154,7 @@ class _AlertsScreenState extends State<AlertsScreen> {
                                     const EdgeInsets.fromLTRB(16, 12, 16, 0),
                                 child: Text(
                                   err,
-                                  style: GoogleFonts.inter(
+                                  style: GoogleFonts.plusJakartaSans(
                                     fontSize: 13,
                                     fontWeight: FontWeight.w600,
                                     color: AppColors.estadoTexto(
@@ -177,7 +175,7 @@ class _AlertsScreenState extends State<AlertsScreen> {
                                         ? 'No hay alertas activas. Todo en orden.'
                                         : 'No hay alertas para mostrar',
                                     textAlign: TextAlign.center,
-                                    style: GoogleFonts.inter(
+                                    style: GoogleFonts.plusJakartaSans(
                                       color: subtextColor,
                                       fontSize: 15,
                                     ),
@@ -215,7 +213,7 @@ class _AlertsScreenState extends State<AlertsScreen> {
           child: ChoiceChip(
             label: Text(
               label,
-              style: GoogleFonts.inter(
+              style: GoogleFonts.plusJakartaSans(
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
                 color: selected ? color : textColor,

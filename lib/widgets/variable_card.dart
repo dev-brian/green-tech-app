@@ -88,7 +88,7 @@ class VariableCard extends StatelessWidget {
                         spec.label,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.inter(
+                        style: GoogleFonts.plusJakartaSans(
                           fontSize: 13,
                           height: 1.2,
                           fontWeight: FontWeight.w600,
@@ -108,7 +108,7 @@ class VariableCard extends StatelessWidget {
                     children: [
                       Text(
                         value,
-                        style: GoogleFonts.poppins(
+                        style: GoogleFonts.plusJakartaSans(
                           fontSize: 30,
                           height: 1.1,
                           fontWeight: FontWeight.w700,
@@ -119,7 +119,7 @@ class VariableCard extends StatelessWidget {
                         const SizedBox(width: 4),
                         Text(
                           spec.unit,
-                          style: GoogleFonts.inter(
+                          style: GoogleFonts.plusJakartaSans(
                             fontSize: 14,
                             fontWeight: FontWeight.w600,
                             color: subtextColor,
@@ -152,6 +152,7 @@ class _StatusPill extends StatelessWidget {
     required this.label,
     required this.color,
     required this.isDark,
+    this.solid = false,
   });
 
   final IconData icon;
@@ -159,28 +160,35 @@ class _StatusPill extends StatelessWidget {
   final Color color;
   final bool isDark;
 
+  /// Crítico va en chip sólido para distinguirse también por claridad.
+  final bool solid;
+
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: isDark ? 0.2 : 0.1),
+        color: solid
+            ? AppColors.criticoSolido(isDark: isDark)
+            : color.withValues(alpha: isDark ? 0.16 : 0.12),
         borderRadius: BorderRadius.circular(20),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 16, color: color),
+          Icon(icon,
+              size: 16,
+              color: solid ? AppColors.sobreCritico(isDark: isDark) : color),
           const SizedBox(width: 4),
           Flexible(
             child: Text(
               label,
               maxLines: 2,
-              style: GoogleFonts.inter(
+              style: GoogleFonts.plusJakartaSans(
                 fontSize: 12,
                 height: 1.2,
                 fontWeight: FontWeight.w700,
-                color: color,
+                color: solid ? AppColors.sobreCritico(isDark: isDark) : color,
               ),
             ),
           ),
@@ -211,6 +219,7 @@ class EstadoPill extends StatelessWidget {
           ? AppColors.sinDatos(isDark: isDark)
           : AppColors.estadoTexto(estado, isDark: isDark),
       isDark: isDark,
+      solid: !desactualizada && estado == EstadoNivel.critico,
     );
   }
 }

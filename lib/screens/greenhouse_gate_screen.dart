@@ -148,9 +148,8 @@ class _GreenhouseGateScreenState extends State<GreenhouseGateScreen> {
       appBar: AppBar(
         title: Text(
           widget.cambiar ? 'Cambiar invernadero' : 'Tus invernaderos',
-          style: GoogleFonts.poppins(fontWeight: FontWeight.w700),
+          style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700),
         ),
-        backgroundColor: AppColors.secondary,
         automaticallyImplyLeading: widget.cambiar,
         actions: [
           if (!widget.cambiar)
@@ -190,7 +189,7 @@ class _GreenhouseGateScreenState extends State<GreenhouseGateScreen> {
           Text(
             _error ?? 'Ocurrió un error',
             textAlign: TextAlign.center,
-            style: GoogleFonts.inter(fontSize: 15, color: textColor),
+            style: GoogleFonts.plusJakartaSans(fontSize: 15, color: textColor),
           ),
           const SizedBox(height: 18),
           ElevatedButton.icon(
@@ -223,13 +222,13 @@ class _GreenhouseGateScreenState extends State<GreenhouseGateScreen> {
             ),
           Text(
             '¿Qué invernadero quieres ver?',
-            style: GoogleFonts.poppins(
+            style: GoogleFonts.plusJakartaSans(
                 fontSize: 18, fontWeight: FontWeight.w700, color: textColor),
           ),
           const SizedBox(height: 4),
           Text(
             'Puedes cambiarlo después desde el Dashboard.',
-            style: GoogleFonts.inter(fontSize: 13, color: subtextColor),
+            style: GoogleFonts.plusJakartaSans(fontSize: 13, color: subtextColor),
           ),
           const SizedBox(height: 16),
           for (final g in lista)
@@ -244,10 +243,10 @@ class _GreenhouseGateScreenState extends State<GreenhouseGateScreen> {
                       const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
                   leading: const Icon(Icons.eco, color: AppColors.primary),
                   title: Text(g.name,
-                      style: GoogleFonts.poppins(
+                      style: GoogleFonts.plusJakartaSans(
                           fontWeight: FontWeight.w600, color: textColor)),
                   subtitle: Text(g.role.label,
-                      style: GoogleFonts.inter(color: subtextColor)),
+                      style: GoogleFonts.plusJakartaSans(color: subtextColor)),
                   trailing: _session.current.value?.id == g.id
                       ? const Icon(Icons.check_circle, color: AppColors.primary)
                       : const Icon(Icons.chevron_right),
@@ -288,7 +287,7 @@ class _GreenhouseGateScreenState extends State<GreenhouseGateScreen> {
                     ? 'Aún no perteneces a ningún invernadero'
                     : 'Unirme a otro invernadero',
                 textAlign: TextAlign.center,
-                style: GoogleFonts.poppins(
+                style: GoogleFonts.plusJakartaSans(
                     fontSize: 17, fontWeight: FontWeight.w700, color: textColor),
               ),
               const SizedBox(height: 6),
@@ -296,7 +295,7 @@ class _GreenhouseGateScreenState extends State<GreenhouseGateScreen> {
                 'Pídele al administrador el código de invitación. '
                 'Lo encuentra en la PWA, en la configuración del invernadero.',
                 textAlign: TextAlign.center,
-                style: GoogleFonts.inter(fontSize: 13, color: subtextColor),
+                style: GoogleFonts.plusJakartaSans(fontSize: 13, color: subtextColor),
               ),
               const SizedBox(height: 18),
               TextField(
@@ -314,7 +313,7 @@ class _GreenhouseGateScreenState extends State<GreenhouseGateScreen> {
                 const SizedBox(height: 10),
                 Text(
                   _error!,
-                  style: GoogleFonts.inter(
+                  style: GoogleFonts.plusJakartaSans(
                     fontSize: 13,
                     color: AppColors.estadoTexto(EstadoNivel.critico,
                         isDark: isDark),
