@@ -66,7 +66,7 @@ class MyApp extends StatelessWidget {
       valueListenable: AppThemeController.themeMode,
       builder: (context, currentMode, _) {
         return MaterialApp(
-          title: 'Green Tech App',
+          title: 'GreenTech',
           debugShowCheckedModeBanner: false,
           theme: buildAppTheme(),
           darkTheme: buildDarkAppTheme(),
