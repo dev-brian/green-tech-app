@@ -9,6 +9,7 @@ import 'services/alerts_controller.dart';
 import 'services/app_status.dart';
 import 'services/firebase_service.dart';
 import 'services/notification_service.dart';
+import 'services/push_service.dart';
 import 'services/sensor_data_controller.dart';
 import 'utils/colors.dart';
 
@@ -41,6 +42,15 @@ void main() async {
   AlertsController.instance
       .configure(notifEnabled: SensorDataController.instance.notifEnabled);
   await NotificationService.instance.init();
+  if (firebaseReady) {
+    // Push FCM: registra el token al iniciar sesión (users/{uid}/fcmTokens).
+    await PushService.instance.init(
+      uidChanges:
+          FirebaseService.instance.authStateChanges().map((u) => u?.uid),
+      bandejaEscucha: AlertsController.instance.escucha,
+      mostrar: NotificationService.instance.showPush,
+    );
+  }
   // Las suscripciones en tiempo real arrancan al elegir invernadero
   // (GreenhouseGateScreen → GreenhouseSession.select).
 

@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:google_sign_in/google_sign_in.dart';
 
 import 'app_status.dart';
+import 'push_service.dart';
 import 'secure_token_storage.dart';
 import 'session_storage.dart';
 
@@ -196,9 +197,11 @@ class FirebaseService {
     await SessionStorage.saveLastEmail(email);
   }
 
-  /// Cierra sesión y borra los tokens guardados en el dispositivo.
+  /// Cierra sesión, deja de recibir push y borra los tokens del dispositivo.
   Future<void> signOut() async {
     if (!firebaseReady) return;
+    // Primero el token de push: borrarlo de Firestore exige seguir con sesión.
+    await PushService.instance.unregister();
     await _guard(() => _auth.signOut());
     await SecureTokenStorage.clear();
     // Cierra también la cuenta de Google para que la próxima vez

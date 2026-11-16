@@ -67,6 +67,31 @@ Si cambias el `applicationId` o agregas iOS/Web, regenera la config con
   publicar `greenhouses/{id}/state/latest` con el contrato de
   `docs/firestore-contract.md`.
 
+## 🔔 Push de alertas (FCM)
+
+La app **no calcula alertas**: solo registra el celular y muestra lo que manda el backend.
+
+- Al iniciar sesión, `PushService` pide permiso de notificaciones y guarda el token en
+  `users/{uid}/fcmTokens/{token}` (`token`, `platform: "android"`, `createdAt`, `lastSeenAt`).
+  Si FCM lo renueva, se reemplaza; al cerrar sesión se borra y se invalida.
+- Con la app abierta, el push se muestra como notificación local, salvo que la bandeja ya
+  esté viendo ese invernadero (ella avisa sola). Tocar la notificación abre la bandeja.
+- Con la app cerrada, Android la muestra solo en el canal `greentech_critico`.
+- No hace falta `google-services.json`: Firebase se inicializa con `lib/firebase_options.dart`.
+
+**Lo que tiene que mandar el backend** (al crear una alerta `critical`, a los tokens de todos
+los miembros del invernadero):
+
+```json
+{
+  "notification": { "title": "⚠️ pH alto en Zona 1", "body": "pH 7.4 (rango 5.5–6.5)" },
+  "data": { "greenhouseId": "abc123", "alertId": "…", "zoneId": "zona-1", "variable": "ph", "severity": "critical" },
+  "android": { "priority": "high", "notification": { "channelId": "greentech_critico" } }
+}
+```
+
+Los tokens que FCM rechace (`messaging/registration-token-not-registered`) se deben borrar.
+
 ## 🎨 Sistema de colores (semáforo)
 
 Los colores verde/amarillo/rojo viven en `lib/utils/colors.dart`

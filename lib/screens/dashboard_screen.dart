@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import '../models/greenhouse.dart';
+import '../models/push_alert.dart';
 import '../models/sensor_model.dart';
 import '../models/zone_status.dart';
 import '../services/alerts_controller.dart';
 import '../services/greenhouse_session.dart';
 import '../services/mock_zone_status_source.dart';
+import '../services/push_service.dart';
 import '../services/sensor_data_controller.dart';
 import '../utils/colors.dart';
 import '../utils/neumorphism.dart';
@@ -30,6 +32,29 @@ class _DashboardScreenState extends State<DashboardScreen> {
   final GreenhouseSession _session = GreenhouseSession.instance;
 
   int _navIndex = 0;
+  final ValueNotifier<PushAlert?> _pushAbrir = PushService.instance.openAlerts;
+
+  @override
+  void initState() {
+    super.initState();
+    _pushAbrir.addListener(_abrirBandejaPorPush);
+    // La app pudo abrirse desde una notificación antes de llegar aquí.
+    WidgetsBinding.instance.addPostFrameCallback((_) => _abrirBandejaPorPush());
+  }
+
+  @override
+  void dispose() {
+    _pushAbrir.removeListener(_abrirBandejaPorPush);
+    super.dispose();
+  }
+
+  /// Tocar una notificación de alerta abre la bandeja.
+  void _abrirBandejaPorPush() {
+    if (!mounted || _pushAbrir.value == null) return;
+    _pushAbrir.value = null;
+    if (_navIndex == 1) return;
+    _onNavTap(1);
+  }
 
   void _cambiarInvernadero() {
     if (_session.isDemo) return;
@@ -47,6 +72,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       setState(() => _navIndex = 0);
       return;
     }
+    setState(() => _navIndex = index);
     final screens = [null, const AlertsScreen(), const ProfileScreen()];
     Navigator.of(context)
         .push(MaterialPageRoute(builder: (_) => screens[index]!))

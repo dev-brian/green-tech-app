@@ -1,17 +1,22 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import '../models/push_alert.dart';
 import '../models/sensor_model.dart';
 
 /// Envoltura sobre `flutter_local_notifications`.
 ///
-/// No depende de Firebase ni de un backend: sirve para mostrar
-/// notificaciones reales en el dispositivo mientras no haya IoT ni FCM
-/// conectados. Cuando conectes Firebase Cloud Messaging más adelante,
-/// esto puede seguir usándose para notificaciones locales/en primer
-/// plano sin cambios grandes.
+/// Muestra en el celular las alertas que detecta la bandeja
+/// ([showAlert]) y los push de FCM que llegan con la app abierta
+/// ([showPush]). Con la app cerrada, Android muestra el push solo en el
+/// canal [canalCritico] (ver AndroidManifest.xml).
 class NotificationService {
   NotificationService._internal();
   static final NotificationService instance = NotificationService._internal();
+
+  /// Canales de Android. [canalCritico] es también el canal por defecto
+  /// de FCM (meta-data en AndroidManifest.xml).
+  static const canalCritico = 'greentech_critico';
+  static const canalAlerta = 'greentech_alerta';
 
   final FlutterLocalNotificationsPlugin _plugin =
       FlutterLocalNotificationsPlugin();
@@ -33,6 +38,16 @@ class NotificationService {
       final androidImpl = _plugin.resolvePlatformSpecificImplementation<
           AndroidFlutterLocalNotificationsPlugin>();
       await androidImpl?.requestNotificationsPermission();
+      // Se crean desde el inicio para que un push que llegue con la app
+      // cerrada ya tenga su canal con importancia máxima.
+      await androidImpl?.createNotificationChannel(
+          const AndroidNotificationChannel(canalCritico, 'Alertas críticas',
+              description: 'Notificaciones de estado de cultivo GREEN TECH',
+              importance: Importance.max));
+      await androidImpl?.createNotificationChannel(
+          const AndroidNotificationChannel(canalAlerta, 'Alertas de cultivo',
+              description: 'Notificaciones de estado de cultivo GREEN TECH',
+              importance: Importance.high));
       _ready = true;
     } catch (e) {
       // No tumbamos la app si el dispositivo/emulador no soporta
@@ -46,7 +61,7 @@ class NotificationService {
     if (!_ready) return;
 
     final esCritico = alert.nivel == EstadoNivel.critico;
-    final channelId = esCritico ? 'greentech_critico' : 'greentech_alerta';
+    final channelId = esCritico ? canalCritico : canalAlerta;
     final channelName = esCritico ? 'Alertas críticas' : 'Alertas de cultivo';
 
     final androidDetails = AndroidNotificationDetails(
@@ -68,6 +83,29 @@ class NotificationService {
       );
     } catch (e) {
       debugPrint('NotificationService: no se pudo mostrar la alerta ($e)');
+    }
+  }
+
+  /// Push de FCM recibido con la app abierta.
+  Future<void> showPush(PushAlert alert) async {
+    if (!_ready) return;
+    final androidDetails = AndroidNotificationDetails(
+      alert.critica ? canalCritico : canalAlerta,
+      alert.critica ? 'Alertas críticas' : 'Alertas de cultivo',
+      channelDescription: 'Notificaciones de estado de cultivo GREEN TECH',
+      importance: alert.critica ? Importance.max : Importance.high,
+      priority: alert.critica ? Priority.max : Priority.high,
+    );
+    try {
+      await _plugin.show(
+        alert.notificationId,
+        alert.title,
+        alert.body,
+        NotificationDetails(
+            android: androidDetails, iOS: const DarwinNotificationDetails()),
+      );
+    } catch (e) {
+      debugPrint('NotificationService: no se pudo mostrar el push ($e)');
     }
   }
 }
