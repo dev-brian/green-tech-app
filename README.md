@@ -41,7 +41,7 @@ autenticación ya es real con Firebase.
 
 ## 🔐 Firebase Auth (HU-M01) — ya conectado
 
-- Proyecto Firebase: `green-tech-96bb2` · App Android: `com.example.greentech_app`
+- Proyecto Firebase: `green-tech-96bb2` · App Android: `mx.greentech.app`
 - Config: `lib/firebase_options.dart` (versionado). `android/app/google-services.json`
   está en `.gitignore` y no es necesario para compilar: Firebase se inicializa con
   `DefaultFirebaseOptions` y Google Sign-In con el `serverClientId` del proyecto.

@@ -59,9 +59,12 @@ la app Android:
 keytool -list -v -keystore upload-keystore.jks -alias greentech
 ```
 
-## 5. Cambiar el applicationId antes de publicar
+## 5. Paquete de la app
 
-`com.example.greentech_app` no se acepta en Play Store. Para cambiarlo:
+Desde el 21/11/2026 la app es `mx.greentech.app` (antes `com.example.greentech_app`,
+que Play Store no acepta). La app vieja sigue registrada en Firebase para las
+APK ya instaladas; se puede borrar después de la entrega. Si hubiera que
+cambiarlo otra vez:
 
 1. En Firebase → Configuración → Agregar app → Android, registra el paquete
    nuevo (por ejemplo `mx.greentech.app`) con las huellas SHA-1/SHA-256.
