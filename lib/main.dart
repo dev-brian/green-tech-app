@@ -23,9 +23,11 @@ void main() async {
         options: DefaultFirebaseOptions.currentPlatform);
     // Caché local de Firestore: los streams siguen entregando la última
     // lectura conocida cuando se cae la red en campo (Task 2.3).
+    // Tope de 50 MB: alcanza para varios días de histórico y evita que la
+    // caché crezca sin límite en el teléfono.
     FirebaseFirestore.instance.settings = const Settings(
       persistenceEnabled: true,
-      cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
+      cacheSizeBytes: 50 * 1024 * 1024,
     );
     firebaseReady = true;
     // HU-M01 / Task 1.3: sincroniza el token de sesión cifrado.
