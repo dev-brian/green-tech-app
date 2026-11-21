@@ -54,7 +54,7 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions android = FirebaseOptions(
     apiKey: 'AIzaSyAOIAH3LvFbIRBL5BJxtQVQkMKR-ZOdeos',
-    appId: '1:998092953685:android:824691da5d099452289cdc',
+    appId: '1:998092953685:android:134c9ffef0597089289cdc',
     messagingSenderId: '998092953685',
     projectId: 'green-tech-96bb2',
     storageBucket: 'green-tech-96bb2.firebasestorage.app',

@@ -22,7 +22,7 @@ if (tieneFirmaRelease) {
 }
 
 android {
-    namespace = "com.example.greentech_app"
+    namespace = "mx.greentech.app"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -36,7 +36,7 @@ android {
 
     defaultConfig {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "com.example.greentech_app"
+        applicationId = "mx.greentech.app"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         // Firebase Auth y flutter_secure_storage requieren Android 6.0 (API 23)+
