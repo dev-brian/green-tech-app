@@ -1,5 +1,4 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter/foundation.dart';
 
 import '../adapters/history_adapter.dart';
 import '../models/history.dart';
@@ -34,10 +33,15 @@ class FirestoreHistoryRepository implements HistoryRepository {
 
   final Map<String, (DateTime, ZoneHistory)> _cache = {};
 
-  /// true después de que Firestore rechazó la consulta compuesta por falta
-  /// del índice `zoneId ASC, timestamp ASC`: desde entonces se usa la
-  /// consulta simple y se filtra la zona en el celular.
-  bool _sinIndice = false;
+  /// Tope de documentos por consulta. Una zona escribe 1 lectura por minuto
+  /// (24 h = 1 440) y 1 promedio por hora (30 días = 720); el margen cubre
+  /// reintentos del backend sin dejar la consulta abierta.
+  static const int limiteLecturas = 1500;
+  static const int limitePromedios = 800;
+
+  /// Si Firestore no responde en este tiempo, la pantalla muestra el error
+  /// con reintento en vez de quedarse cargando.
+  static const Duration timeout = Duration(seconds: 10);
 
   @override
   Future<ZoneHistory> fetch(
@@ -56,7 +60,8 @@ class FirestoreHistoryRepository implements HistoryRepository {
     final gh = _db.collection('greenhouses').doc(greenhouseId);
     final ZoneHistory history;
     if (range == HistoryRange.h24) {
-      final docs = await _query(gh.collection('readings'), 'timestamp', zoneId, since);
+      final docs = await _query(gh.collection('readings'), 'timestamp', zoneId, since,
+          limiteLecturas);
       final raw = HistoryAdapter.fromReadings(docs);
       history = ZoneHistory(
         zoneId: zoneId,
@@ -68,7 +73,8 @@ class FirestoreHistoryRepository implements HistoryRepository {
       );
     } else {
       final docs =
-          await _query(gh.collection('readingsHourly'), 'hour', zoneId, since);
+          await _query(gh.collection('readingsHourly'), 'hour', zoneId, since,
+          limitePromedios);
       history = ZoneHistory(
         zoneId: zoneId,
         range: range,
@@ -79,35 +85,25 @@ class FirestoreHistoryRepository implements HistoryRepository {
     return history;
   }
 
+  /// Consulta una sola zona en el rango pedido, con límite y tiempo de
+  /// espera. Usa el índice compuesto (zoneId, campo de tiempo) declarado en
+  /// firestore.indexes.json del repo de la PWA; si faltara, Firestore
+  /// responde failed-precondition y la pantalla muestra el error (antes se
+  /// leían todas las zonas del periodo y se filtraban en el celular).
   Future<List<Map<String, dynamic>>> _query(
     CollectionReference<Map<String, dynamic>> col,
     String timeField,
     String zoneId,
     DateTime since,
+    int limite,
   ) async {
-    final desde = Timestamp.fromDate(since);
-    if (!_sinIndice) {
-      try {
-        final snap = await col
-            .where('zoneId', isEqualTo: zoneId)
-            .where(timeField, isGreaterThanOrEqualTo: desde)
-            .orderBy(timeField)
-            .get();
-        return [for (final d in snap.docs) d.data()];
-      } on FirebaseException catch (e) {
-        if (e.code != 'failed-precondition') rethrow;
-        debugPrint('HistoryRepository: falta el índice compuesto de '
-            '${col.id} (zoneId, $timeField); se filtra en el celular');
-        _sinIndice = true;
-      }
-    }
     final snap = await col
-        .where(timeField, isGreaterThanOrEqualTo: desde)
+        .where('zoneId', isEqualTo: zoneId)
+        .where(timeField, isGreaterThanOrEqualTo: Timestamp.fromDate(since))
         .orderBy(timeField)
-        .get();
-    return [
-      for (final d in snap.docs)
-        if (d.data()['zoneId'] == zoneId) d.data(),
-    ];
+        .limit(limite)
+        .get()
+        .timeout(timeout);
+    return [for (final d in snap.docs) d.data()];
   }
 }
