@@ -4,6 +4,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:google_sign_in/google_sign_in.dart';
 
+import '../repositories/greenhouse_repository.dart';
+import 'account_deletion.dart';
 import 'app_status.dart';
 import 'push_service.dart';
 import 'secure_token_storage.dart';
@@ -109,7 +111,8 @@ class FirebaseService {
       try {
         await user.reload();
       } on FirebaseAuthException catch (e) {
-        if (e.code == 'user-disabled' || e.code == 'user-not-found' ||
+        if (e.code == 'user-disabled' ||
+            e.code == 'user-not-found' ||
             e.code == 'user-token-expired') {
           await signOut();
           return null;
@@ -177,12 +180,12 @@ class FirebaseService {
 
     final idToken = account.authentication.idToken;
     if (idToken == null) {
-      throw const AuthException(
-          'google-no-token', 'Google no devolvió credenciales. Inténtalo de nuevo');
+      throw const AuthException('google-no-token',
+          'Google no devolvió credenciales. Inténtalo de nuevo');
     }
 
-    final cred = await _guard(() => _auth.signInWithCredential(
-        GoogleAuthProvider.credential(idToken: idToken)));
+    final cred = await _guard(() => _auth
+        .signInWithCredential(GoogleAuthProvider.credential(idToken: idToken)));
     await _afterAuth(cred.user, account.email);
     return true;
   }
@@ -212,6 +215,43 @@ class FirebaseService {
         await GoogleSignIn.instance.signOut();
       } catch (_) {}
     }
+  }
+
+  /// Borra la cuenta y sus datos en la nube (ver [AccountDeletion]).
+  /// Lanza [AccountDeletionException] o [AuthException] con un mensaje listo
+  /// para mostrar. [clearLocalData] borra lo guardado por las pantallas.
+  Future<void> deleteAccount({
+    GreenhouseRepository? greenhouses,
+    Future<void> Function()? clearLocalData,
+  }) async {
+    _ensureReady();
+    final user = _auth.currentUser;
+    if (user == null) {
+      throw const AuthException('no-user', 'No hay una sesión iniciada');
+    }
+    await AccountDeletion(
+      uid: user.uid,
+      greenhouses: greenhouses ?? FirestoreGreenhouseRepository(),
+      secondsSinceSignIn: () async {
+        final r = await user.getIdTokenResult();
+        final auth = r.authTime;
+        if (auth == null) return 1 << 30;
+        return DateTime.now().difference(auth).inSeconds;
+      },
+      unregisterPush: PushService.instance.unregister,
+      deleteAuthUser: () => _guard(user.delete),
+      clearLocalData: () async {
+        await SecureTokenStorage.clear();
+        await SessionStorage.clear();
+        if (clearLocalData != null) await clearLocalData();
+        if (!kIsWeb) {
+          try {
+            await _initGoogle();
+            await GoogleSignIn.instance.signOut();
+          } catch (_) {}
+        }
+      },
+    ).run();
   }
 
   void _validateCredentials(String email, String password) {
@@ -255,6 +295,8 @@ class FirebaseService {
         return 'Sin conexión. Revisa tu internet e inténtalo de nuevo';
       case 'operation-not-allowed':
         return 'Este método de inicio de sesión no está habilitado en Firebase';
+      case 'requires-recent-login':
+        return 'Por seguridad, cierra sesión, vuelve a entrar y después borra tu cuenta';
       case 'account-exists-with-different-credential':
         return 'Ese email ya está registrado con otro método. Entra con email y contraseña';
       default:

@@ -9,6 +9,7 @@ import '../utils/neumorphism.dart';
 import '../utils/validators.dart';
 import 'dashboard_screen.dart';
 import 'forgot_password_screen.dart';
+import 'privacy_screen.dart';
 import 'greenhouse_gate_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -227,7 +228,8 @@ class _LoginScreenState extends State<LoginScreen> {
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     const Icon(Icons.info_outline,
-                                        color: AppColors.accentOrange, size: 18),
+                                        color: AppColors.accentOrange,
+                                        size: 18),
                                     const SizedBox(width: 8),
                                     Expanded(
                                       child: Text(
@@ -406,20 +408,35 @@ class _LoginScreenState extends State<LoginScreen> {
                             // Modo demo con datos de prueba: siempre
                             // disponible para enseñar la app sin cuenta.
                             ...[
-                            const SizedBox(height: 4),
-                            TextButton(
-                              onPressed: _loading ? null : _continueWithoutAccount,
-                              child: Text(
-                                'Ver demostración sin cuenta',
-                                textAlign: TextAlign.center,
-                                style: GoogleFonts.plusJakartaSans(
-                                  fontSize: 12,
-                                  color: subtextColor,
-                                  fontWeight: FontWeight.w500,
-                                  decoration: TextDecoration.underline,
+                              const SizedBox(height: 4),
+                              TextButton(
+                                onPressed:
+                                    _loading ? null : _continueWithoutAccount,
+                                child: Text(
+                                  'Ver demostración sin cuenta',
+                                  textAlign: TextAlign.center,
+                                  style: GoogleFonts.plusJakartaSans(
+                                    fontSize: 12,
+                                    color: subtextColor,
+                                    fontWeight: FontWeight.w500,
+                                    decoration: TextDecoration.underline,
+                                  ),
                                 ),
                               ),
-                            ),
+                              TextButton(
+                                onPressed: () => Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                      builder: (_) => const PrivacyScreen()),
+                                ),
+                                child: Text(
+                                  'Aviso de privacidad',
+                                  style: GoogleFonts.plusJakartaSans(
+                                    fontSize: 12,
+                                    color: subtextColor,
+                                    decoration: TextDecoration.underline,
+                                  ),
+                                ),
+                              ),
                             ],
                           ],
                         ),

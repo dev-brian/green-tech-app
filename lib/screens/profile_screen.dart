@@ -9,6 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../config/variable_config.dart';
 import '../models/zone_status.dart';
 import '../models/greenhouse.dart';
+import '../services/account_deletion.dart';
 import '../services/firebase_service.dart';
 import '../services/greenhouse_session.dart';
 import '../services/sensor_data_controller.dart';
@@ -16,6 +17,7 @@ import '../utils/colors.dart';
 import '../utils/neumorphism.dart';
 import 'greenhouse_gate_screen.dart';
 import 'login_screen.dart';
+import 'privacy_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -84,6 +86,67 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  bool _borrando = false;
+
+  Future<void> _deleteAccount() async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('¿Borrar tu cuenta?'),
+        content: const Text(
+          'Se borran tu cuenta, tus membresías en los invernaderos, el '
+          'identificador push de este teléfono y tu foto de perfil. '
+          'No se puede deshacer.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: TextButton.styleFrom(foregroundColor: AppColors.critico),
+            child: const Text('Borrar cuenta'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+
+    setState(() => _borrando = true);
+    try {
+      await FirebaseService.instance.deleteAccount(
+        clearLocalData: () async {
+          await _removeImage();
+          await GreenhouseSession.instance.clear();
+        },
+      );
+      if (!mounted) return;
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const LoginScreen()),
+        (route) => false,
+      );
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Tu cuenta y tus datos se borraron')),
+      );
+    } on AccountDeletionException catch (e) {
+      _avisar(e.message);
+    } on AuthException catch (e) {
+      _avisar(e.message);
+    } catch (_) {
+      _avisar(
+          'No se pudo borrar la cuenta. Revisa tu conexión e inténtalo de nuevo');
+    } finally {
+      if (mounted) setState(() => _borrando = false);
+    }
+  }
+
+  void _avisar(String mensaje) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(mensaje)));
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -91,8 +154,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
         FirebaseService.instance.currentUserEmail ?? 'Modo demostración';
     final session = GreenhouseSession.instance;
 
-    final textColor = isDark ? AppColors.darkTextPrimary : AppColors.textPrimary;
-    final subtextColor = isDark ? AppColors.darkTextSecondary : AppColors.textSecondary;
+    final textColor =
+        isDark ? AppColors.darkTextPrimary : AppColors.textPrimary;
+    final subtextColor =
+        isDark ? AppColors.darkTextSecondary : AppColors.textSecondary;
     final bgColor = isDark ? AppColors.darkBackground : AppColors.background;
 
     return Scaffold(
@@ -132,7 +197,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         children: [
                           CircleAvatar(
                             radius: 50,
-                            backgroundColor: AppColors.mintAccent.withValues(alpha: isDark ? 0.3 : 0.4),
+                            backgroundColor: AppColors.mintAccent
+                                .withValues(alpha: isDark ? 0.3 : 0.4),
                             backgroundImage: _imagePath != null
                                 ? FileImage(File(_imagePath!))
                                 : null,
@@ -149,14 +215,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             bottom: -4,
                             child: Container(
                               decoration: BoxDecoration(
-                                color: isDark ? AppColors.darkSurface : AppColors.surface,
+                                color: isDark
+                                    ? AppColors.darkSurface
+                                    : AppColors.surface,
                                 shape: BoxShape.circle,
                               ),
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
                                   IconButton(
-                                    icon: const Icon(Icons.photo_camera, size: 18),
+                                    icon: const Icon(Icons.photo_camera,
+                                        size: 18),
                                     color: AppColors.secondary,
                                     onPressed: _pickImage,
                                     constraints: const BoxConstraints(),
@@ -164,7 +233,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   ),
                                   if (_imagePath != null)
                                     IconButton(
-                                      icon: const Icon(Icons.delete_outline, size: 18),
+                                      icon: const Icon(Icons.delete_outline,
+                                          size: 18),
                                       color: AppColors.critico,
                                       onPressed: _removeImage,
                                       constraints: const BoxConstraints(),
@@ -246,10 +316,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     SwitchListTile(
                       title: Text(
                         'Modo Oscuro Neumórfico',
-                        style: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.w600, color: textColor),
+                        style: GoogleFonts.plusJakartaSans(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: textColor),
                       ),
                       secondary: Icon(
-                        isDark ? Icons.dark_mode_rounded : Icons.light_mode_rounded,
+                        isDark
+                            ? Icons.dark_mode_rounded
+                            : Icons.light_mode_rounded,
                         color: AppColors.primary,
                       ),
                       value: isDark,
@@ -261,11 +336,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       SwitchListTile(
                         title: Text(
                           'Avisar alertas críticas: ${v.spec.label}',
-                          style: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.w500, color: textColor),
+                          style: GoogleFonts.plusJakartaSans(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                              color: textColor),
                         ),
                         value: _controller.notifEnabled(v),
                         activeThumbColor: AppColors.primary,
-                        onChanged: (on) => setState(() => _controller.setNotifPref(v, on)),
+                        onChanged: (on) =>
+                            setState(() => _controller.setNotifPref(v, on)),
                       ),
                     ],
                   ],
@@ -289,6 +368,31 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       borderRadius: BorderRadius.circular(12)),
                 ),
               ),
+              const SizedBox(height: 12),
+              TextButton.icon(
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const PrivacyScreen()),
+                ),
+                icon: const Icon(Icons.privacy_tip_outlined),
+                label: const Text('Aviso de privacidad'),
+              ),
+              if (FirebaseService.instance.isLoggedIn)
+                TextButton.icon(
+                  onPressed: _borrando ? null : _deleteAccount,
+                  icon: _borrando
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.person_remove_outlined,
+                          color: AppColors.critico),
+                  label: Text(
+                    'Borrar mi cuenta',
+                    style:
+                        GoogleFonts.plusJakartaSans(color: AppColors.critico),
+                  ),
+                ),
             ],
           ),
         ),

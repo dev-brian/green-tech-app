@@ -20,11 +20,23 @@ class _FakeGreenhouses implements GreenhouseRepository {
 
   @override
   Future<String> joinWithCode(
-      {required String code, required String uid, String? email, String? name}) async {
+      {required String code,
+      required String uid,
+      String? email,
+      String? name}) async {
     unidoCon = code;
     const nuevo = Greenhouse(id: 'gh-nuevo', name: 'Nuevo');
     lista = [...lista, nuevo];
     return nuevo.id;
+  }
+
+  @override
+  Future<void> leave(
+      {required String greenhouseId, required String uid}) async {
+    lista = [
+      for (final g in lista)
+        if (g.id != greenhouseId) g
+    ];
   }
 }
 

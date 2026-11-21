@@ -27,6 +27,10 @@ abstract class GreenhouseRepository {
     String? email,
     String? name,
   });
+
+  /// Saca al usuario del invernadero: lo quita de `memberIds` y borra
+  /// `members/{uid}` en un solo batch (las reglas exigen ambos juntos).
+  Future<void> leave({required String greenhouseId, required String uid});
 }
 
 class FirestoreGreenhouseRepository implements GreenhouseRepository {
@@ -77,7 +81,8 @@ class FirestoreGreenhouseRepository implements GreenhouseRepository {
 
     try {
       String? greenhouseId;
-      final invite = await _db.collection('greenhouse_invites').doc(clean).get();
+      final invite =
+          await _db.collection('greenhouse_invites').doc(clean).get();
       if (invite.exists) {
         greenhouseId = invite.data()?['greenhouseId'] as String?;
       }
@@ -110,5 +115,19 @@ class FirestoreGreenhouseRepository implements GreenhouseRepository {
         _ => 'No se pudo unir al invernadero (${e.code})',
       });
     }
+  }
+
+  @override
+  Future<void> leave({
+    required String greenhouseId,
+    required String uid,
+  }) async {
+    final ghRef = _greenhouses.doc(greenhouseId);
+    final batch = _db.batch()
+      ..update(ghRef, {
+        'memberIds': FieldValue.arrayRemove([uid]),
+      })
+      ..delete(ghRef.collection('members').doc(uid));
+    await batch.commit();
   }
 }
