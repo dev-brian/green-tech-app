@@ -44,7 +44,8 @@ void main() {
     setUp(() {
       SharedPreferences.setMockInitialValues({});
       controller = SensorDataController.instance;
-      mock = controller.source as MockZoneStatusSource;
+      mock = MockZoneStatusSource();
+      controller.useSource(mock);
     });
 
     /// Monta el Dashboard en un teléfono de 360 px de ancho. Es alto para
@@ -55,7 +56,7 @@ void main() {
       addTearDown(tester.view.reset);
       // Todo corre en el reloj falso del test: el Timer de 5 s de la fuente
       // de prueba no avanza solo, así que no hay timers vivos al terminar.
-      controller.start();
+      controller.start(greenhouseId: 'demo');
       await tester.pumpWidget(MaterialApp(
         theme: buildAppTheme(),
         home: const DashboardScreen(),
@@ -87,9 +88,15 @@ void main() {
           findsNWidgets(2 * HydroVariable.values.length));
       expect(find.text('AMBIENTE'), findsNWidgets(2));
       expect(find.text('SOLUCIÓN NUTRITIVA'), findsNWidgets(2));
-      // Estado general: crítico en el resumen, en zona-2 y en su tarjeta.
+      // Crítico en "Qué hacer ahora", en el encabezado de zona-2 y en su
+      // tarjeta.
       expect(find.text('Crítico'), findsNWidgets(3));
-      expect(find.text('2 de 2 zonas requieren atención'), findsOneWidget);
+      // El resumen dice en palabras cuántas cosas hay que revisar.
+      expect(find.text('Hay 2 cosas por revisar'), findsOneWidget);
+      expect(find.text('Qué hacer ahora'), findsOneWidget);
+      expect(find.text('Queda poca agua en el tanque'), findsOneWidget);
+      expect(find.text('El agua lleva pocos nutrientes'), findsOneWidget);
+      expect(find.text('Tus zonas'), findsOneWidget);
       expect(tester.takeException(), isNull);
 
       await desmontar(tester);
@@ -104,9 +111,12 @@ void main() {
           .widgetList<ZoneSection>(find.byType(ZoneSection))
           .map((s) => s.zone.zoneId);
       expect(secciones, ['zona-2', 'zona-1']);
-      // 7 tarjetas + el encabezado de la zona + el resumen.
+      // 7 tarjetas + el encabezado de la zona.
       expect(find.text('Sin datos recientes'),
-          findsNWidgets(HydroVariable.values.length + 2));
+          findsNWidgets(HydroVariable.values.length + 1));
+      // El resumen lo dice en palabras y no pide revisar nada más.
+      expect(find.text('No llegan datos de una zona'), findsOneWidget);
+      expect(find.text('Qué hacer ahora'), findsNothing);
       expect(find.text('Hace 10 min'), findsOneWidget);
 
       await desmontar(tester);

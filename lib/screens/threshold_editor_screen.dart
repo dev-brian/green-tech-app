@@ -3,9 +3,9 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../config/variable_config.dart';
-import '../models/greenhouse.dart';
+import '../models/greenhouse_thresholds.dart';
 import '../models/zone_status.dart';
-import '../services/greenhouse_repository.dart';
+import '../services/local_greenhouse_repository.dart';
 import '../utils/colors.dart';
 import '../utils/form_style.dart';
 import '../utils/neumorphism.dart';
@@ -35,7 +35,7 @@ class ThresholdEditorScreen extends StatefulWidget {
 }
 
 class _ThresholdEditorScreenState extends State<ThresholdEditorScreen> {
-  final GreenhouseRepository _repository = GreenhouseRepository.instance;
+  final LocalGreenhouseRepository _repository = LocalGreenhouseRepository.instance;
   final _formKey = GlobalKey<FormState>();
 
   Crop? _crop;

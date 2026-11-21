@@ -65,7 +65,7 @@ class ZoneSection extends StatelessWidget {
                 children: [
                   Text(
                     zone.zoneId,
-                    style: GoogleFonts.poppins(
+                    style: GoogleFonts.plusJakartaSans(
                       fontSize: 20,
                       fontWeight: FontWeight.w700,
                       color: textColor,
@@ -80,7 +80,7 @@ class ZoneSection extends StatelessWidget {
                       EstadoPill(estado: zone.overallLevel, desactualizada: stale),
                       Text(
                         formatHace(zone.timestamp, now),
-                        style: GoogleFonts.inter(
+                        style: GoogleFonts.plusJakartaSans(
                           fontSize: 12,
                           fontWeight: FontWeight.w500,
                           color: subtextColor,
@@ -137,7 +137,7 @@ class _GroupHeader extends StatelessWidget {
           const SizedBox(width: 6),
           Text(
             group.label.toUpperCase(),
-            style: GoogleFonts.inter(
+            style: GoogleFonts.plusJakartaSans(
               fontSize: 12,
               fontWeight: FontWeight.w700,
               letterSpacing: 0.8,

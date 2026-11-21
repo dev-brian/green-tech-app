@@ -32,6 +32,18 @@ class ZoneStatusAdapter {
     'critical': EstadoNivel.critico,
   };
 
+  /// Nombre de campo de Firestore (`ph`, `tankLevel`…) → [HydroVariable].
+  /// null si no es una de las 7 variables.
+  static HydroVariable? variableFromField(Object? field) {
+    for (final e in _fields.entries) {
+      if (e.value == field) return e.key;
+    }
+    return null;
+  }
+
+  /// [HydroVariable] → nombre de campo en Firestore.
+  static String fieldOf(HydroVariable variable) => _fields[variable]!;
+
   /// Convierte el documento completo: una [ZoneStatus] por cada entrada
   /// (zoneId) que sea un mapa. Las entradas que no lo son se ignoran.
   static Map<String, ZoneStatus> zonesFromDocument(Map<String, dynamic> doc) {

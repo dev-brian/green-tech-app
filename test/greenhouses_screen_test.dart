@@ -4,16 +4,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:greentech_app/models/greenhouse.dart';
+import 'package:greentech_app/models/greenhouse_thresholds.dart';
 import 'package:greentech_app/models/zone_status.dart';
 import 'package:greentech_app/screens/greenhouse_detail_screen.dart';
 import 'package:greentech_app/screens/greenhouses_screen.dart';
 import 'package:greentech_app/screens/threshold_editor_screen.dart';
-import 'package:greentech_app/services/greenhouse_repository.dart';
+import 'package:greentech_app/services/local_greenhouse_repository.dart';
 import 'package:greentech_app/utils/colors.dart';
 
 void main() {
-  final repository = GreenhouseRepository.instance;
+  final repository = LocalGreenhouseRepository.instance;
 
   setUp(() {
     SharedPreferences.setMockInitialValues({});
@@ -39,14 +39,14 @@ void main() {
     await tester.pump();
   }
 
-  group('Greenhouse / Crop (JSON)', () {
+  group('GreenhouseThresholds / Crop (JSON)', () {
     test('el id se genera corto y único', () {
       expect(nuevoId(), isNotEmpty);
       expect(nuevoId(), isNot(nuevoId()));
     });
 
     test('round-trip conserva ubicación y umbrales', () {
-      const original = Greenhouse(
+      const original = GreenhouseThresholds(
         id: 'g1',
         name: 'Norte',
         location: 'Ladera este',
@@ -63,7 +63,7 @@ void main() {
         ],
       );
 
-      final copia = Greenhouse.fromJson(
+      final copia = GreenhouseThresholds.fromJson(
         jsonDecode(jsonEncode(original.toJson())) as Map<String, dynamic>,
       );
 
@@ -122,10 +122,10 @@ void main() {
     });
   });
 
-  group('GreenhouseRepository', () {
+  group('LocalGreenhouseRepository', () {
     test('guarda invernaderos y los vuelve a cargar', () async {
-      await repository.addGreenhouse(
-        const Greenhouse(id: 'g1', name: 'Norte', location: 'Ladera'),
+      await repository.addGreenhouseThresholds(
+        const GreenhouseThresholds(id: 'g1', name: 'Norte', location: 'Ladera'),
       );
       await repository.addCrop(
         'g1',
@@ -150,12 +150,12 @@ void main() {
     });
 
     test('editar y eliminar actualizan la lista guardada', () async {
-      await repository.addGreenhouse(const Greenhouse(id: 'g1', name: 'Norte'));
-      await repository.addGreenhouse(const Greenhouse(id: 'g2', name: 'Sur'));
-      await repository.updateGreenhouse(
-        const Greenhouse(id: 'g1', name: 'Norte 2'),
+      await repository.addGreenhouseThresholds(const GreenhouseThresholds(id: 'g1', name: 'Norte'));
+      await repository.addGreenhouseThresholds(const GreenhouseThresholds(id: 'g2', name: 'Sur'));
+      await repository.updateGreenhouseThresholds(
+        const GreenhouseThresholds(id: 'g1', name: 'Norte 2'),
       );
-      await repository.deleteGreenhouse('g2');
+      await repository.deleteGreenhouseThresholds('g2');
 
       repository.reset();
       await repository.load();
@@ -206,7 +206,7 @@ void main() {
     });
 
     testWidgets('edita un invernadero existente', (tester) async {
-      await repository.addGreenhouse(const Greenhouse(id: 'g1', name: 'Norte'));
+      await repository.addGreenhouseThresholds(const GreenhouseThresholds(id: 'g1', name: 'Norte'));
       await montar(tester);
 
       await tester.tap(find.byTooltip('Editar invernadero Norte'));
@@ -224,7 +224,7 @@ void main() {
     });
 
     testWidgets('elimina solo con confirmación', (tester) async {
-      await repository.addGreenhouse(const Greenhouse(id: 'g1', name: 'Norte'));
+      await repository.addGreenhouseThresholds(const GreenhouseThresholds(id: 'g1', name: 'Norte'));
       await montar(tester);
 
       await tester.tap(find.byTooltip('Eliminar invernadero Norte'));
@@ -247,8 +247,8 @@ void main() {
     });
 
     testWidgets('toques ≥ 48 px y contraste AA', (tester) async {
-      await repository.addGreenhouse(
-        const Greenhouse(id: 'g1', name: 'Norte', location: 'Ladera este'),
+      await repository.addGreenhouseThresholds(
+        const GreenhouseThresholds(id: 'g1', name: 'Norte', location: 'Ladera este'),
       );
       await repository.addCrop(
         'g1',
@@ -270,7 +270,7 @@ void main() {
 
   group('Detalle y umbrales a 360 px', () {
     testWidgets('abre el detalle y agrega un cultivo', (tester) async {
-      await repository.addGreenhouse(const Greenhouse(id: 'g1', name: 'Norte'));
+      await repository.addGreenhouseThresholds(const GreenhouseThresholds(id: 'g1', name: 'Norte'));
       await montar(tester);
 
       await tester.tap(find.byKey(const Key('greenhouse_g1')));
@@ -292,7 +292,7 @@ void main() {
 
     testWidgets('configura umbrales de pH y luz de un cultivo',
         (tester) async {
-      await repository.addGreenhouse(const Greenhouse(id: 'g1', name: 'Norte'));
+      await repository.addGreenhouseThresholds(const GreenhouseThresholds(id: 'g1', name: 'Norte'));
       await repository.addCrop(
         'g1',
         const Crop(id: 'c1', name: 'Tomate'),
@@ -324,7 +324,7 @@ void main() {
     });
 
     testWidgets('el mínimo no puede superar al máximo', (tester) async {
-      await repository.addGreenhouse(const Greenhouse(id: 'g1', name: 'Norte'));
+      await repository.addGreenhouseThresholds(const GreenhouseThresholds(id: 'g1', name: 'Norte'));
       await repository.addCrop('g1', const Crop(id: 'c1', name: 'Tomate'));
       await montar(
         tester,
@@ -352,7 +352,7 @@ void main() {
 
     testWidgets('toques ≥ 48 px y contraste AA en detalle y umbrales',
         (tester) async {
-      await repository.addGreenhouse(const Greenhouse(id: 'g1', name: 'Norte'));
+      await repository.addGreenhouseThresholds(const GreenhouseThresholds(id: 'g1', name: 'Norte'));
       await repository.addCrop(
         'g1',
         const Crop(

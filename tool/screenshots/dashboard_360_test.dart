@@ -6,7 +6,7 @@
 //     --dart-define=SHOTS_DIR=docs/screenshots --dart-define=SHOTS_TAG=despues
 //
 // Las pruebas de Flutter no cargan fuentes reales: aquí se sirven Roboto y
-// MaterialIcons del SDK (Roboto ocupa el lugar de Inter/Poppins), así que la
+// MaterialIcons del SDK (Roboto ocupa el lugar de Plus Jakarta Sans), así que la
 // tipografía de la captura es aproximada pero el layout es el real.
 //
 // Es una prueba de Flutter aunque viva fuera de test/ (para no correr con la
@@ -56,7 +56,7 @@ const _roboto = {
 class _FontsManifest implements AssetManifest {
   @override
   List<String> listAssets() => [
-        for (final family in ['Inter', 'Poppins'])
+        for (final family in ['Inter', 'Poppins', 'PlusJakartaSans'])
           for (final peso in _roboto.keys) 'fonts/$family-$peso.ttf',
       ];
 
@@ -128,7 +128,8 @@ void main() {
     _serveFonts(tester);
     final key = GlobalKey();
     final controller = SensorDataController.instance;
-    final mock = controller.source as MockZoneStatusSource;
+    final mock = MockZoneStatusSource();
+    controller.useSource(mock);
     // zona-1 en alerta y zona-2 en crítico: la crítica debe salir primero.
     mock.setZoneScenario('zona-1', MockScenario.solucionCaliente);
     mock.setZoneScenario('zona-2', MockScenario.phAlto);
@@ -140,7 +141,7 @@ void main() {
       await tester.pump();
     }
 
-    controller.start();
+    controller.start(greenhouseId: 'demo');
     await tester.pumpWidget(RepaintBoundary(
       key: key,
       child: MaterialApp(
@@ -167,6 +168,23 @@ void main() {
     mock.setZoneScenario('zona-1', MockScenario.lecturaVieja);
     await render(_height);
     await _capture(tester, key, 'sin-datos-recientes');
+
+    // Modo oscuro con zona-1 en alerta y zona-2 en crítico.
+    mock.setZoneScenario('zona-1', MockScenario.solucionCaliente);
+    mock.setZoneScenario('zona-2', MockScenario.phAlto);
+    await tester.pumpWidget(RepaintBoundary(
+      key: key,
+      child: MaterialApp(
+        debugShowCheckedModeBanner: false,
+        theme: buildDarkAppTheme(),
+        home: const DashboardScreen(),
+      ),
+    ));
+    await render(_height);
+    // MaterialApp anima el cambio de tema (AnimatedTheme).
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.pump(const Duration(milliseconds: 400));
+    await _capture(tester, key, 'oscuro');
 
     await tester.runAsync(controller.stop);
     mock.scenario = MockScenario.normal;

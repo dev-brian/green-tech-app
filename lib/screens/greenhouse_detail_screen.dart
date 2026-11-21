@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../config/variable_config.dart';
-import '../models/greenhouse.dart';
+import '../models/greenhouse_thresholds.dart';
 import '../models/sensor_model.dart';
 import '../models/zone_status.dart';
-import '../services/greenhouse_repository.dart';
+import '../services/local_greenhouse_repository.dart';
 import '../utils/colors.dart';
 import '../utils/form_style.dart';
 import '../utils/neumorphism.dart';
@@ -24,7 +24,7 @@ class GreenhouseDetailScreen extends StatefulWidget {
 }
 
 class _GreenhouseDetailScreenState extends State<GreenhouseDetailScreen> {
-  final GreenhouseRepository _repository = GreenhouseRepository.instance;
+  final LocalGreenhouseRepository _repository = LocalGreenhouseRepository.instance;
 
   Future<void> _addCrop() async {
     final name = await showCropNameForm(context, titulo: 'Nuevo cultivo');
@@ -110,7 +110,7 @@ class _GreenhouseDetailScreenState extends State<GreenhouseDetailScreen> {
       backgroundColor: bgColor,
       appBar: AppBar(
         backgroundColor: AppColors.secondary,
-        title: ValueListenableBuilder<List<Greenhouse>>(
+        title: ValueListenableBuilder<List<GreenhouseThresholds>>(
           valueListenable: _repository.greenhouses,
           builder: (context, greenhouses, _) {
             final greenhouse = _find(greenhouses);
@@ -123,7 +123,7 @@ class _GreenhouseDetailScreenState extends State<GreenhouseDetailScreen> {
           },
         ),
       ),
-      body: ValueListenableBuilder<List<Greenhouse>>(
+      body: ValueListenableBuilder<List<GreenhouseThresholds>>(
         valueListenable: _repository.greenhouses,
         builder: (context, greenhouses, _) {
           final greenhouse = _find(greenhouses);
@@ -189,7 +189,7 @@ class _GreenhouseDetailScreenState extends State<GreenhouseDetailScreen> {
     );
   }
 
-  Greenhouse? _find(List<Greenhouse> greenhouses) {
+  GreenhouseThresholds? _find(List<GreenhouseThresholds> greenhouses) {
     for (final g in greenhouses) {
       if (g.id == widget.greenhouseId) return g;
     }

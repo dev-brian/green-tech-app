@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../models/greenhouse.dart';
+import '../models/greenhouse_thresholds.dart';
 
 /// Invernaderos y umbrales guardados en el dispositivo (SharedPreferences).
 ///
@@ -11,15 +11,15 @@ import '../models/greenhouse.dart';
 /// las pantallas escuchan [greenhouses] y cada mutación reemplaza la lista
 /// y la persiste. Es la copia local de trabajo del productor, no la base de
 /// datos del backend.
-class GreenhouseRepository {
-  GreenhouseRepository._();
+class LocalGreenhouseRepository {
+  LocalGreenhouseRepository._();
 
-  static final GreenhouseRepository instance = GreenhouseRepository._();
+  static final LocalGreenhouseRepository instance = LocalGreenhouseRepository._();
 
   static const _prefsKey = 'greenhouses_v1';
 
   /// Invernaderos actuales, en el orden en que se guardaron.
-  final ValueNotifier<List<Greenhouse>> greenhouses = ValueNotifier(const []);
+  final ValueNotifier<List<GreenhouseThresholds>> greenhouses = ValueNotifier(const []);
 
   bool _loaded = false;
 
@@ -34,7 +34,7 @@ class GreenhouseRepository {
       final decoded = jsonDecode(raw) as List<dynamic>;
       greenhouses.value = [
         for (final item in decoded)
-          Greenhouse.fromJson(item as Map<String, dynamic>),
+          GreenhouseThresholds.fromJson(item as Map<String, dynamic>),
       ];
     } catch (_) {
       // Archivo ilegible: se empieza de cero en vez de romper la app.
@@ -51,20 +51,20 @@ class GreenhouseRepository {
   }
 
   /// El invernadero con ese id, o null (solo memoria; llama antes a [load]).
-  Greenhouse? greenhouseById(String id) {
+  GreenhouseThresholds? greenhouseById(String id) {
     for (final g in greenhouses.value) {
       if (g.id == id) return g;
     }
     return null;
   }
 
-  Future<void> addGreenhouse(Greenhouse greenhouse) async {
+  Future<void> addGreenhouseThresholds(GreenhouseThresholds greenhouse) async {
     await load();
     greenhouses.value = [...greenhouses.value, greenhouse];
     await _persist();
   }
 
-  Future<void> updateGreenhouse(Greenhouse greenhouse) async {
+  Future<void> updateGreenhouseThresholds(GreenhouseThresholds greenhouse) async {
     await load();
     greenhouses.value = [
       for (final g in greenhouses.value)
@@ -73,7 +73,7 @@ class GreenhouseRepository {
     await _persist();
   }
 
-  Future<void> deleteGreenhouse(String id) async {
+  Future<void> deleteGreenhouseThresholds(String id) async {
     await load();
     greenhouses.value = [
       for (final g in greenhouses.value)

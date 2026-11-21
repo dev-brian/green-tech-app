@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import '../models/greenhouse.dart';
+import '../models/greenhouse_thresholds.dart';
 import '../models/sensor_model.dart';
-import '../services/greenhouse_repository.dart';
+import '../services/local_greenhouse_repository.dart';
 import '../utils/colors.dart';
 import '../utils/form_style.dart';
 import '../utils/neumorphism.dart';
@@ -19,7 +19,7 @@ class GreenhousesScreen extends StatefulWidget {
 }
 
 class _GreenhousesScreenState extends State<GreenhousesScreen> {
-  final GreenhouseRepository _repository = GreenhouseRepository.instance;
+  final LocalGreenhouseRepository _repository = LocalGreenhouseRepository.instance;
 
   @override
   void initState() {
@@ -28,7 +28,7 @@ class _GreenhousesScreenState extends State<GreenhousesScreen> {
     _repository.load();
   }
 
-  void _openDetail(Greenhouse greenhouse) {
+  void _openDetail(GreenhouseThresholds greenhouse) {
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => GreenhouseDetailScreen(greenhouseId: greenhouse.id),
@@ -36,17 +36,17 @@ class _GreenhousesScreenState extends State<GreenhousesScreen> {
     );
   }
 
-  Future<void> _save(Greenhouse? existing) async {
+  Future<void> _save(GreenhouseThresholds? existing) async {
     final result = await showGreenhouseForm(context, existing: existing);
     if (result == null) return;
     if (existing == null) {
-      await _repository.addGreenhouse(result);
+      await _repository.addGreenhouseThresholds(result);
     } else {
-      await _repository.updateGreenhouse(result);
+      await _repository.updateGreenhouseThresholds(result);
     }
   }
 
-  Future<void> _delete(Greenhouse greenhouse) async {
+  Future<void> _delete(GreenhouseThresholds greenhouse) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) {
@@ -94,7 +94,7 @@ class _GreenhousesScreenState extends State<GreenhousesScreen> {
       },
     );
     if (confirmed == true) {
-      await _repository.deleteGreenhouse(greenhouse.id);
+      await _repository.deleteGreenhouseThresholds(greenhouse.id);
     }
   }
 
@@ -126,7 +126,7 @@ class _GreenhousesScreenState extends State<GreenhousesScreen> {
           ),
         ],
       ),
-      body: ValueListenableBuilder<List<Greenhouse>>(
+      body: ValueListenableBuilder<List<GreenhouseThresholds>>(
         valueListenable: _repository.greenhouses,
         builder: (context, greenhouses, _) {
           if (greenhouses.isEmpty) {
@@ -184,7 +184,7 @@ class _GreenhousesScreenState extends State<GreenhousesScreen> {
   }
 
   Widget _greenhouseCard(
-    Greenhouse greenhouse, {
+    GreenhouseThresholds greenhouse, {
     required bool isDark,
     required Color textColor,
     required Color subtextColor,
@@ -336,11 +336,11 @@ class _GreenhousesScreenState extends State<GreenhousesScreen> {
 
 /// Formulario para crear o editar un invernadero. Devuelve el invernadero
 /// listo para guardar, o null si se cancela.
-Future<Greenhouse?> showGreenhouseForm(
+Future<GreenhouseThresholds?> showGreenhouseForm(
   BuildContext context, {
-  Greenhouse? existing,
+  GreenhouseThresholds? existing,
 }) {
-  return showDialog<Greenhouse>(
+  return showDialog<GreenhouseThresholds>(
     context: context,
     builder: (_) => _GreenhouseForm(existing: existing),
   );
@@ -349,7 +349,7 @@ Future<Greenhouse?> showGreenhouseForm(
 class _GreenhouseForm extends StatefulWidget {
   const _GreenhouseForm({this.existing});
 
-  final Greenhouse? existing;
+  final GreenhouseThresholds? existing;
 
   @override
   State<_GreenhouseForm> createState() => _GreenhouseFormState();
@@ -378,7 +378,7 @@ class _GreenhouseFormState extends State<_GreenhouseForm> {
     if (!_formKey.currentState!.validate()) return;
     final existing = widget.existing;
     Navigator.of(context).pop(
-      Greenhouse(
+      GreenhouseThresholds(
         id: existing?.id ?? nuevoId(),
         name: _name.text.trim(),
         location: _location.text.trim(),

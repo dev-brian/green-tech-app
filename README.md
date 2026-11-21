@@ -3,6 +3,17 @@
 Proyecto base en Flutter siguiendo la arquitectura definida: Splash → Login/Registro →
 Dashboard → Detalle de zona → Alertas → Perfil.
 
+## 🧪 Integración continua
+
+Cada pull request a `develop` o `main` (y cada push a ramas `feature/`, `feat/`, `fix/`, `chore/`) corre [`.github/workflows/ci.yml`](.github/workflows/ci.yml) con Flutter 3.44.9:
+
+1. `flutter pub get --enforce-lockfile`
+2. `flutter analyze` (reglas de `flutter_lints`)
+3. `flutter test`
+4. `flutter build apk --debug` (el APK queda como artefacto del run por 7 días)
+
+Si el repo tiene el secreto `SLACK_WEBHOOK_URL`, el resultado se avisa en Slack.
+
 ## 🚀 Cómo correrlo
 
 1. Instala Flutter (https://docs.flutter.dev/get-started/install) si no lo tienes.
@@ -10,11 +21,17 @@ Dashboard → Detalle de zona → Alertas → Perfil.
    ```bash
    cd greentech_app
    ```
-3. Instala dependencias:
+3. Crea tu archivo `.env` a partir del ejemplo y pon tu `WEATHER_API_KEY`
+   (es obligatorio: `pubspec.yaml` lo declara como asset, y sin él fallan
+   `flutter run`, `flutter test` y `flutter analyze`):
+   ```bash
+   cp .env.example .env
+   ```
+4. Instala dependencias:
    ```bash
    flutter pub get
    ```
-4. Corre la app (con un emulador o celular conectado):
+5. Corre la app (con un emulador o celular conectado):
    ```bash
    flutter run
    ```
@@ -49,6 +66,31 @@ Si cambias el `applicationId` o agregas iOS/Web, regenera la config con
   `SensorDataController` en lugar de la fuente de prueba. El backend debe
   publicar `greenhouses/{id}/state/latest` con el contrato de
   `docs/firestore-contract.md`.
+
+## 🔔 Push de alertas (FCM)
+
+La app **no calcula alertas**: solo registra el celular y muestra lo que manda el backend.
+
+- Al iniciar sesión, `PushService` pide permiso de notificaciones y guarda el token en
+  `users/{uid}/fcmTokens/{token}` (`token`, `platform: "android"`, `createdAt`, `lastSeenAt`).
+  Si FCM lo renueva, se reemplaza; al cerrar sesión se borra y se invalida.
+- Con la app abierta, el push se muestra como notificación local, salvo que la bandeja ya
+  esté viendo ese invernadero (ella avisa sola). Tocar la notificación abre la bandeja.
+- Con la app cerrada, Android la muestra solo en el canal `greentech_critico`.
+- No hace falta `google-services.json`: Firebase se inicializa con `lib/firebase_options.dart`.
+
+**Lo que tiene que mandar el backend** (al crear una alerta `critical`, a los tokens de todos
+los miembros del invernadero):
+
+```json
+{
+  "notification": { "title": "⚠️ pH alto en Zona 1", "body": "pH 7.4 (rango 5.5–6.5)" },
+  "data": { "greenhouseId": "abc123", "alertId": "…", "zoneId": "zona-1", "variable": "ph", "severity": "critical" },
+  "android": { "priority": "high", "notification": { "channelId": "greentech_critico" } }
+}
+```
+
+Los tokens que FCM rechace (`messaging/registration-token-not-registered`) se deben borrar.
 
 ## 🎨 Sistema de colores (semáforo)
 
