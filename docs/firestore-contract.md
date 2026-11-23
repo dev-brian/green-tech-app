@@ -23,11 +23,21 @@ solo lo muestra. Plantas, umbrales y miembros se gestionan solo en la PWA.
 | `greenhouses/{id}/readings` (últimas 24 h de la zona) | Gráfica de 24 h, promediada cada 5 min | `HistoryAdapter`, `FirestoreHistoryRepository` |
 | `greenhouses/{id}/readingsHourly` (7 y 30 días) | Gráficas de 7 y 30 días | `HistoryAdapter`, `FirestoreHistoryRepository` |
 | `greenhouses/{id}/actuators/{zoneId}` | Tarjeta de actuadores, solo lectura | `ActuatorAdapter`, `FirestoreActuatorsRepository` |
+| `greenhouses/{id}.thresholdsByCrop` (y `thresholds` legado) | Umbrales reales por cultivo, **solo lectura** | `ThresholdAdapter`, `FirestoreGreenhouseRepository` |
 | `greenhouse_invites/{code}` | Resolver el código al unirse | `FirestoreGreenhouseRepository` |
 
 Los adapters (`lib/adapters/`) son los **únicos** lugares que conocen los
 nombres de los campos. Si una variable falta o viene mal formada, la app la
 muestra como **"Sin datos"**: nunca la supone `ok`.
+
+### Umbrales (`thresholdsByCrop`, solo lectura)
+
+La app consulta los umbrales efectivos de cada cultivo para mostrarlos,
+pero **no los calcula ni los escribe**. El backend evalúa con los mismos
+rangos. Cada variable tiene cuatro cortes
+(`redMin ≤ yellowMin ≤ yellowMax ≤ redMax`) y los perfiles por defecto de
+`jitomate`/`lechuga` viven en `lib/models/crop_thresholds.dart` (copia de la
+PWA). El campo viejo `thresholds` se respeta solo para jitomate.
 
 ### `state/latest` (resumen)
 
