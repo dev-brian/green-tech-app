@@ -76,7 +76,7 @@ jobs:
         uses: actions/checkout@v5
 
       - name: Setup Java
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: 'temurin'
           java-version: '17'
@@ -115,7 +115,7 @@ jobs:
           echo "Sin llaves privadas, cuentas de servicio ni claves del backend en el APK."
 
       - name: Subir APK
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: greentech-app-release-apk
           path: build/app/outputs/flutter-apk/app-release.apk
