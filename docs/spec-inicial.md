@@ -1,3 +1,5 @@
+> **Documento histórico (julio 2026).** Es la especificación inicial de la app (sensores ESP32, humedad del suelo). El alcance actual está en el README y en `docs/firestore-contract.md`.
+
 # SPEC — GREEN TECH App Móvil
 
 **Monitoreo inteligente de cultivos**
