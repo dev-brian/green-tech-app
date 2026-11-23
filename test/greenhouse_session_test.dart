@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:greentech_app/models/crop_thresholds.dart';
 import 'package:greentech_app/models/greenhouse.dart';
 import 'package:greentech_app/repositories/alerts_repository.dart';
 import 'package:greentech_app/repositories/greenhouse_repository.dart';
@@ -38,6 +39,12 @@ class _FakeGreenhouses implements GreenhouseRepository {
         if (g.id != greenhouseId) g
     ];
   }
+
+  @override
+  Future<Map<CropType, CropThresholds>> thresholds(
+    String greenhouseId,
+  ) async =>
+      const {};
 }
 
 class _FakeZones implements ZoneStatusSource {

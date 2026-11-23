@@ -17,6 +17,7 @@ import '../widgets/que_hacer_section.dart';
 import '../widgets/zone_section.dart';
 import 'alerts_screen.dart';
 import 'greenhouse_gate_screen.dart';
+import 'greenhouses_screen.dart';
 import 'profile_screen.dart';
 import 'sensor_detail_screen.dart';
 
@@ -73,7 +74,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
       return;
     }
     setState(() => _navIndex = index);
-    final screens = [null, const AlertsScreen(), const ProfileScreen()];
+    // Resalta la pestaña elegida mientras entra su pantalla; al volver se
+    // regresa a Inicio, porque el Dashboard sigue montado debajo.
+    final screens = [
+      null,
+      const AlertsScreen(),
+      const GreenhousesScreen(),
+      const ProfileScreen(),
+    ];
     Navigator.of(context)
         .push(MaterialPageRoute(builder: (_) => screens[index]!))
         .then((_) {
@@ -254,6 +262,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
               label: 'Inicio'),
           NavigationDestination(
               icon: _AlertasIcon(), label: 'Alertas'),
+          NavigationDestination(
+              icon: Icon(Icons.warehouse_outlined),
+              selectedIcon:
+                  Icon(Icons.warehouse, color: AppColors.secondary),
+              label: 'Invernaderos'),
           NavigationDestination(
               icon: Icon(Icons.person_outline), label: 'Perfil'),
         ],

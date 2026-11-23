@@ -57,8 +57,9 @@ autenticación ya es real con Firebase.
 | 1.3 Persistencia segura de sesión | `lib/services/secure_token_storage.dart` (ID token cifrado con Android Keystore vía `flutter_secure_storage`) |
 
 Para correrlo: `flutter clean && flutter pub get && flutter run` con un emulador/celular Android (API 23+).
-Si cambias el `applicationId` o agregas iOS/Web, regenera la config con
-`flutterfire configure --project=green-tech-96bb2`.
+El repo solo incluye la plataforma Android (iPhone y web quedan fuera del alcance). Si después se agrega otra,
+se genera con `flutter create --platforms=ios .` y luego `flutterfire configure --project=green-tech-96bb2`.
+Si cambias el `applicationId`, regenera también la config con `flutterfire configure`.
 
 ## 🔌 Conectar datos reales
 
