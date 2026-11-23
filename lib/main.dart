@@ -41,8 +41,15 @@ void main() async {
   await SensorDataController.instance.init();
   // Las alertas nuevas solo se notifican si el usuario no apagó esa
   // variable en su Perfil.
-  AlertsController.instance
-      .configure(notifEnabled: SensorDataController.instance.notifEnabled);
+  AlertsController.instance.configure(
+    notifEnabled: SensorDataController.instance.notifEnabled,
+    // En segundo plano el push de FCM ya muestra la alerta crítica; la
+    // bandeja solo notifica con la app abierta (si no, salían dos).
+    pushLaCubre: () =>
+        firebaseReady &&
+        WidgetsBinding.instance.lifecycleState != null &&
+        WidgetsBinding.instance.lifecycleState != AppLifecycleState.resumed,
+  );
   await NotificationService.instance.init();
   if (firebaseReady) {
     // Push FCM: registra el token al iniciar sesión (users/{uid}/fcmTokens).

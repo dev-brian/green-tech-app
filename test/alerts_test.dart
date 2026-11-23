@@ -156,6 +156,32 @@ void main() {
       expect(notificadas, hasLength(1));
     });
 
+    test('en segundo plano no notifica: el push de FCM ya lo hace', () async {
+      var segundoPlano = false;
+      final avisos = <AlertItem>[];
+      final repo2 = _FakeAlertsRepo();
+      final c = AlertsController.forTesting(repo2,
+          notify: avisos.add, pushLaCubre: () => segundoPlano);
+      await c.start('gh-1');
+      repo2.controller.add(const AlertsSnapshot(alerts: []));
+      await _tick();
+
+      segundoPlano = true;
+      repo2.controller.add(AlertsSnapshot(alerts: [_alerta('a')]));
+      await _tick();
+      expect(avisos, isEmpty);
+      expect(c.activas, 1);
+
+      // Al volver al frente no se repite la que ya avisó el push.
+      segundoPlano = false;
+      repo2.controller
+          .add(AlertsSnapshot(alerts: [_alerta('a'), _alerta('b')]));
+      await _tick();
+      expect(avisos.map((x) => x.id), ['b']);
+      await c.stop();
+      await repo2.controller.close();
+    });
+
     test('notifica cuando un aviso sube a crítico', () async {
       repo.controller.add(const AlertsSnapshot(alerts: []));
       await _tick();
@@ -180,7 +206,8 @@ void main() {
       expect(notificadas.map((a) => a.id), ['tanque']);
     });
 
-    test('atender se ve al instante y se mantiene hasta que el servidor confirma',
+    test(
+        'atender se ve al instante y se mantiene hasta que el servidor confirma',
         () async {
       repo.controller.add(AlertsSnapshot(alerts: [_alerta('a')]));
       await _tick();
@@ -192,8 +219,8 @@ void main() {
       expect(sut.activas, 0);
 
       // Sin red, la caché aún dice `new`: la app sigue mostrándola atendida.
-      repo.controller.add(
-          AlertsSnapshot(alerts: [_alerta('a')], fromCache: true));
+      repo.controller
+          .add(AlertsSnapshot(alerts: [_alerta('a')], fromCache: true));
       await _tick();
       expect(sut.alerts.value.single.status, AlertStatus.atendida);
     });
@@ -219,7 +246,8 @@ void main() {
     ];
     List<String> ids(List<AlertItem> l) => [for (final a in l) a.id];
 
-    expect(ids(filtrarAlertas(todas, estado: FiltroEstado.activas)), ['a', 'b']);
+    expect(
+        ids(filtrarAlertas(todas, estado: FiltroEstado.activas)), ['a', 'b']);
     expect(ids(filtrarAlertas(todas, estado: FiltroEstado.atendidas)), ['c']);
     expect(ids(filtrarAlertas(todas, estado: FiltroEstado.resueltas)), ['d']);
     expect(
