@@ -18,8 +18,10 @@ class AlertsController {
     AlertsRepository? repository,
     bool Function(HydroVariable)? notifEnabled,
     void Function(AlertItem)? notify,
+    bool Function()? pushLaCubre,
   })  : _repository = repository ?? FirestoreAlertsRepository(),
         _notifEnabled = notifEnabled,
+        _pushLaCubre = pushLaCubre,
         _notify = notify ?? NotificationService.instance.showAlert;
 
   static final AlertsController instance = AlertsController._internal();
@@ -29,13 +31,22 @@ class AlertsController {
     AlertsRepository repository, {
     bool Function(HydroVariable)? notifEnabled,
     void Function(AlertItem)? notify,
+    bool Function()? pushLaCubre,
   }) =>
       AlertsController._internal(
-          repository: repository, notifEnabled: notifEnabled, notify: notify);
+          repository: repository,
+          notifEnabled: notifEnabled,
+          notify: notify,
+          pushLaCubre: pushLaCubre);
 
   AlertsRepository _repository;
   bool Function(HydroVariable)? _notifEnabled;
   final void Function(AlertItem) _notify;
+
+  /// true cuando el push de FCM ya avisa esta alerta: la app está en segundo
+  /// plano y Android muestra el push solo. Así no salen dos notificaciones
+  /// de la misma alerta (la del push y la local de la bandeja).
+  bool Function()? _pushLaCubre;
 
   final ValueNotifier<List<AlertItem>> alerts = ValueNotifier(const []);
   final ValueNotifier<bool> loading = ValueNotifier(false);
@@ -64,9 +75,11 @@ class AlertsController {
   void configure({
     AlertsRepository? repository,
     bool Function(HydroVariable)? notifEnabled,
+    bool Function()? pushLaCubre,
   }) {
     if (repository != null) _repository = repository;
     if (notifEnabled != null) _notifEnabled = notifEnabled;
+    if (pushLaCubre != null) _pushLaCubre = pushLaCubre;
   }
 
   Future<void> start(String greenhouseId) async {
@@ -101,8 +114,8 @@ class AlertsController {
     loading.value = false;
     error.value = null;
     // Lo que el servidor ya marca como atendido deja de estar pendiente.
-    _pendientes.removeWhere((id, _) =>
-        snap.alerts.any((a) => a.id == id && !a.activa));
+    _pendientes.removeWhere(
+        (id, _) => snap.alerts.any((a) => a.id == id && !a.activa));
     alerts.value = [
       for (final a in snap.alerts) _pendientes[a.id] ?? a,
     ];
@@ -111,6 +124,7 @@ class AlertsController {
 
   void _notificarNuevas(List<AlertItem> lista) {
     final abiertas = lista.where((a) => a.activa);
+    final avisaElPush = _pushLaCubre?.call() ?? false;
     if (_primeraCarga) {
       // Lo que ya estaba abierto al entrar no se notifica: la bandeja lo
       // muestra. Solo avisa lo que llegue de aquí en adelante.
@@ -123,8 +137,10 @@ class AlertsController {
     for (final a in abiertas) {
       final antes = _avisadas[a.id];
       _avisadas[a.id] = a.nivel;
-      final empeoro = antes == EstadoNivel.alerta && a.nivel == EstadoNivel.critico;
+      final empeoro =
+          antes == EstadoNivel.alerta && a.nivel == EstadoNivel.critico;
       if ((antes == null || empeoro) &&
+          !avisaElPush &&
           a.nivel == EstadoNivel.critico &&
           (a.variable == null || (_notifEnabled?.call(a.variable!) ?? true))) {
         _notify(a);
