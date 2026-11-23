@@ -6,11 +6,18 @@ import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../config/variable_config.dart';
+import '../models/zone_status.dart';
+import '../models/greenhouse.dart';
+import '../services/account_deletion.dart';
 import '../services/firebase_service.dart';
+import '../services/greenhouse_session.dart';
 import '../services/sensor_data_controller.dart';
 import '../utils/colors.dart';
 import '../utils/neumorphism.dart';
+import 'greenhouse_gate_screen.dart';
 import 'login_screen.dart';
+import 'privacy_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -70,6 +77,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _signOut() async {
+    await GreenhouseSession.instance.clear();
     await FirebaseService.instance.signOut();
     if (!mounted) return;
     Navigator.of(context).pushAndRemoveUntil(
@@ -78,14 +86,78 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  bool _borrando = false;
+
+  Future<void> _deleteAccount() async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('¿Borrar tu cuenta?'),
+        content: const Text(
+          'Se borran tu cuenta, tus membresías en los invernaderos, el '
+          'identificador push de este teléfono y tu foto de perfil. '
+          'No se puede deshacer.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: TextButton.styleFrom(foregroundColor: AppColors.critico),
+            child: const Text('Borrar cuenta'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+
+    setState(() => _borrando = true);
+    try {
+      await FirebaseService.instance.deleteAccount(
+        clearLocalData: () async {
+          await _removeImage();
+          await GreenhouseSession.instance.clear();
+        },
+      );
+      if (!mounted) return;
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const LoginScreen()),
+        (route) => false,
+      );
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Tu cuenta y tus datos se borraron')),
+      );
+    } on AccountDeletionException catch (e) {
+      _avisar(e.message);
+    } on AuthException catch (e) {
+      _avisar(e.message);
+    } catch (_) {
+      _avisar(
+          'No se pudo borrar la cuenta. Revisa tu conexión e inténtalo de nuevo');
+    } finally {
+      if (mounted) setState(() => _borrando = false);
+    }
+  }
+
+  void _avisar(String mensaje) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(mensaje)));
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final email =
-        FirebaseService.instance.currentUserEmail ?? 'usuario@greentech.com';
+        FirebaseService.instance.currentUserEmail ?? 'Modo demostración';
+    final session = GreenhouseSession.instance;
 
-    final textColor = isDark ? AppColors.darkTextPrimary : AppColors.textPrimary;
-    final subtextColor = isDark ? AppColors.darkTextSecondary : AppColors.textSecondary;
+    final textColor =
+        isDark ? AppColors.darkTextPrimary : AppColors.textPrimary;
+    final subtextColor =
+        isDark ? AppColors.darkTextSecondary : AppColors.textSecondary;
     final bgColor = isDark ? AppColors.darkBackground : AppColors.background;
 
     return Scaffold(
@@ -93,14 +165,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
       appBar: AppBar(
         title: Text(
           'Perfil de Usuario',
-          style: GoogleFonts.poppins(fontWeight: FontWeight.w700),
+          style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700),
         ),
-        backgroundColor: AppColors.secondary,
         actions: [
           IconButton(
             icon: Icon(
               isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
-              color: Colors.white,
             ),
             onPressed: () => AppThemeController.toggleTheme(),
           ),
@@ -127,7 +197,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         children: [
                           CircleAvatar(
                             radius: 50,
-                            backgroundColor: AppColors.mintAccent.withValues(alpha: isDark ? 0.3 : 0.4),
+                            backgroundColor: AppColors.mintAccent
+                                .withValues(alpha: isDark ? 0.3 : 0.4),
                             backgroundImage: _imagePath != null
                                 ? FileImage(File(_imagePath!))
                                 : null,
@@ -144,14 +215,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             bottom: -4,
                             child: Container(
                               decoration: BoxDecoration(
-                                color: isDark ? AppColors.darkSurface : AppColors.surface,
+                                color: isDark
+                                    ? AppColors.darkSurface
+                                    : AppColors.surface,
                                 shape: BoxShape.circle,
                               ),
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
                                   IconButton(
-                                    icon: const Icon(Icons.photo_camera, size: 18),
+                                    icon: const Icon(Icons.photo_camera,
+                                        size: 18),
                                     color: AppColors.secondary,
                                     onPressed: _pickImage,
                                     constraints: const BoxConstraints(),
@@ -159,7 +233,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   ),
                                   if (_imagePath != null)
                                     IconButton(
-                                      icon: const Icon(Icons.delete_outline, size: 18),
+                                      icon: const Icon(Icons.delete_outline,
+                                          size: 18),
                                       color: AppColors.critico,
                                       onPressed: _removeImage,
                                       constraints: const BoxConstraints(),
@@ -174,18 +249,46 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       const SizedBox(height: 16),
                       Text(
                         email,
-                        style: GoogleFonts.poppins(
+                        style: GoogleFonts.plusJakartaSans(
                           fontWeight: FontWeight.w700,
                           fontSize: 18,
                           color: textColor,
                         ),
                       ),
                       const SizedBox(height: 4),
+                      ValueListenableBuilder<Greenhouse?>(
+                        valueListenable: session.current,
+                        builder: (context, gh, _) => Text(
+                          gh == null
+                              ? 'Sin invernadero'
+                              : '${gh.role.label} · ${gh.name}',
+                          textAlign: TextAlign.center,
+                          style: GoogleFonts.plusJakartaSans(
+                            color: subtextColor,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ),
+                      if (!session.isDemo) ...[
+                        const SizedBox(height: 8),
+                        TextButton.icon(
+                          onPressed: () => Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) =>
+                                  const GreenhouseGateScreen(cambiar: true),
+                            ),
+                          ),
+                          icon: const Icon(Icons.swap_horiz),
+                          label: const Text('Cambiar invernadero'),
+                        ),
+                      ],
+                      const SizedBox(height: 4),
                       Text(
-                        'Productor agrícola · Green Tech',
-                        style: GoogleFonts.inter(
+                        'Plantas, umbrales y miembros se gestionan en la PWA.',
+                        textAlign: TextAlign.center,
+                        style: GoogleFonts.plusJakartaSans(
                           color: subtextColor,
-                          fontSize: 13,
+                          fontSize: 12,
                         ),
                       ),
                     ],
@@ -195,7 +298,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               const SizedBox(height: 24),
               Text(
                 'Preferencias de la Aplicación',
-                style: GoogleFonts.poppins(
+                style: GoogleFonts.plusJakartaSans(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
                   color: textColor,
@@ -213,46 +316,37 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     SwitchListTile(
                       title: Text(
                         'Modo Oscuro Neumórfico',
-                        style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600, color: textColor),
+                        style: GoogleFonts.plusJakartaSans(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: textColor),
                       ),
                       secondary: Icon(
-                        isDark ? Icons.dark_mode_rounded : Icons.light_mode_rounded,
+                        isDark
+                            ? Icons.dark_mode_rounded
+                            : Icons.light_mode_rounded,
                         color: AppColors.primary,
                       ),
                       value: isDark,
                       activeThumbColor: AppColors.primary,
                       onChanged: (_) => AppThemeController.toggleTheme(),
                     ),
-                    const Divider(height: 1, indent: 16, endIndent: 16),
-                    SwitchListTile(
-                      title: Text(
-                        'Alertas de temperatura',
-                        style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w500, color: textColor),
+                    for (final v in HydroVariable.values) ...[
+                      const Divider(height: 1, indent: 16, endIndent: 16),
+                      SwitchListTile(
+                        title: Text(
+                          'Avisar alertas críticas: ${v.spec.label}',
+                          style: GoogleFonts.plusJakartaSans(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                              color: textColor),
+                        ),
+                        value: _controller.notifEnabled(v),
+                        activeThumbColor: AppColors.primary,
+                        onChanged: (on) =>
+                            setState(() => _controller.setNotifPref(v, on)),
                       ),
-                      value: _controller.notifTemp,
-                      activeThumbColor: AppColors.primary,
-                      onChanged: (v) => setState(() => _controller.setNotifPref('temp', v)),
-                    ),
-                    const Divider(height: 1, indent: 16, endIndent: 16),
-                    SwitchListTile(
-                      title: Text(
-                        'Alertas de humedad ambiental',
-                        style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w500, color: textColor),
-                      ),
-                      value: _controller.notifHumedadAire,
-                      activeThumbColor: AppColors.primary,
-                      onChanged: (v) => setState(() => _controller.setNotifPref('humedad_aire', v)),
-                    ),
-                    const Divider(height: 1, indent: 16, endIndent: 16),
-                    SwitchListTile(
-                      title: Text(
-                        'Alertas de humedad del suelo',
-                        style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w500, color: textColor),
-                      ),
-                      value: _controller.notifHumedadSuelo,
-                      activeThumbColor: AppColors.primary,
-                      onChanged: (v) => setState(() => _controller.setNotifPref('humedad_suelo', v)),
-                    ),
+                    ],
                   ],
                 ),
               ),
@@ -262,7 +356,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 icon: const Icon(Icons.logout, color: AppColors.critico),
                 label: Text(
                   'Cerrar sesión',
-                  style: GoogleFonts.inter(
+                  style: GoogleFonts.plusJakartaSans(
                     color: AppColors.critico,
                     fontWeight: FontWeight.w600,
                   ),
@@ -274,6 +368,31 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       borderRadius: BorderRadius.circular(12)),
                 ),
               ),
+              const SizedBox(height: 12),
+              TextButton.icon(
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const PrivacyScreen()),
+                ),
+                icon: const Icon(Icons.privacy_tip_outlined),
+                label: const Text('Aviso de privacidad'),
+              ),
+              if (FirebaseService.instance.isLoggedIn)
+                TextButton.icon(
+                  onPressed: _borrando ? null : _deleteAccount,
+                  icon: _borrando
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.person_remove_outlined,
+                          color: AppColors.critico),
+                  label: Text(
+                    'Borrar mi cuenta',
+                    style:
+                        GoogleFonts.plusJakartaSans(color: AppColors.critico),
+                  ),
+                ),
             ],
           ),
         ),

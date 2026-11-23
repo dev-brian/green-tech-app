@@ -1,39 +1,70 @@
+import 'dart:async';
+import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../models/sensor_model.dart';
-import 'api_service.dart';
-import 'notification_service.dart';
+import '../adapters/zone_status_adapter.dart';
+import '../models/zone_status.dart';
+import 'app_status.dart';
+import 'zone_status_source.dart';
 
-/// Fuente única de la lectura "activa" del cultivo.
+/// Fuente única del estado "activo" del invernadero.
 ///
-/// Mientras no haya sensores ESP32 reales conectados, la lectura se arma
-/// así: se toma el clima real de la ubicación elegida (vía [ApiService])
-/// como base, y sobre esa base se pueden aplicar overrides manuales
-/// (los sliders del Dashboard) para simular lo que un sensor real
-/// reportaría. Dashboard, Detalle de sensor y Alertas leen todos de aquí,
-/// así que siempre están sincronizados entre sí — ya no cada pantalla
-/// calcula su propio estado por separado.
+/// Las zonas llegan en tiempo real desde un [ZoneStatusSource]:
+/// [FirestoreZoneStatusSource] (`greenhouses/{id}/state/latest`) con sesión
+/// iniciada, o `MockZoneStatusSource` en el modo demo (ver DataSources). Los
+/// niveles (semáforo) los calcula el backend; aquí solo se leen. Dashboard y
+/// Detalle leen de aquí, así que siempre están sincronizados entre sí. Las
+/// alertas NO se calculan aquí: llegan del backend (AlertsController).
 class SensorDataController {
-  SensorDataController._internal();
+  SensorDataController._internal({
+    ZoneStatusSource? source,
+    this.offlineDelay = const Duration(seconds: 3),
+  }) : _source = source ?? FirestoreZoneStatusSource();
   static final SensorDataController instance =
       SensorDataController._internal();
 
-  final ApiService api = ApiService();
+  /// Instancia aislada para pruebas, con una fuente falsa.
+  @visibleForTesting
+  factory SensorDataController.forTesting(
+    ZoneStatusSource source, {
+    Duration offlineDelay = Duration.zero,
+  }) =>
+      SensorDataController._internal(
+          source: source, offlineDelay: offlineDelay);
 
-  final ValueNotifier<SensorReading?> currentReading = ValueNotifier(null);
-  final ValueNotifier<List<AlertItem>> alerts = ValueNotifier(const []);
+  /// Cuánto tiempo seguido deben llegar datos solo de caché antes de
+  /// avisar "sin conexión". Al abrir la app Firestore suele emitir primero
+  /// la caché y un instante después el servidor; sin este margen el aviso
+  /// parpadearía en cada arranque.
+  final Duration offlineDelay;
+
+  ZoneStatusSource _source;
+  ZoneStatusSource get source => _source;
+
+  /// Cambia la fuente (Firestore ↔ demo). Toma efecto en el próximo [start].
+  void useSource(ZoneStatusSource source) => _source = source;
+
+  // --- Zonas del invernadero ---
+  final ValueNotifier<Map<String, ZoneStatus>> zones = ValueNotifier(const {});
+
+  /// Zona que se muestra en el Dashboard y en el Detalle.
+  final ValueNotifier<ZoneStatus?> currentZone = ValueNotifier(null);
   final ValueNotifier<bool> loading = ValueNotifier(false);
   final ValueNotifier<String?> error = ValueNotifier(null);
 
-  SensorReading? _baseline; // última lectura real de clima, sin overrides
-  double? _overrideTemp;
-  double? _overrideHumedadAire;
-  double? _overrideHumedadSuelo;
+  /// true cuando lo que se muestra viene de la caché local porque no hay
+  /// conexión con Firestore (señal típica en campo / red rural).
+  final ValueNotifier<bool> offline = ValueNotifier(false);
 
-  bool _notifTemp = true;
-  bool _notifHumedadAire = true;
-  bool _notifHumedadSuelo = true;
-  EstadoNivel? _ultimoEstadoNotificado;
+  StreamSubscription<ZoneStatusSnapshot>? _subscription;
+  Timer? _offlineTimer;
+  String? _greenhouseId;
+  String? _selectedZoneId;
+
+  final Map<HydroVariable, bool> _notif = {
+    for (final v in HydroVariable.values) v: true,
+  };
 
   bool _initialized = false;
 
@@ -41,131 +72,160 @@ class SensorDataController {
     if (_initialized) return;
     _initialized = true;
     final prefs = await SharedPreferences.getInstance();
-    _notifTemp = prefs.getBool('notif_temp') ?? true;
-    _notifHumedadAire = prefs.getBool('notif_humedad_aire') ?? true;
-    _notifHumedadSuelo = prefs.getBool('notif_humedad_suelo') ?? true;
+    for (final v in HydroVariable.values) {
+      _notif[v] = prefs.getBool(_notifKey(v)) ?? true;
+    }
   }
 
-  bool get notifTemp => _notifTemp;
-  bool get notifHumedadAire => _notifHumedadAire;
-  bool get notifHumedadSuelo => _notifHumedadSuelo;
+  String _notifKey(HydroVariable v) => 'notif_${v.name}';
 
-  Future<void> setNotifPref(String metric, bool value) async {
+  bool notifEnabled(HydroVariable v) => _notif[v] ?? true;
+
+  Future<void> setNotifPref(HydroVariable v, bool value) async {
     // Actualiza el campo en memoria de inmediato (sincrono) para que la UI
     // (setState en ProfileScreen) refleje el cambio en el mismo frame; la
     // escritura a SharedPreferences puede tardar y va después.
-    switch (metric) {
-      case 'temp':
-        _notifTemp = value;
-        break;
-      case 'humedad_aire':
-        _notifHumedadAire = value;
-        break;
-      case 'humedad_suelo':
-        _notifHumedadSuelo = value;
-        break;
-    }
+    _notif[v] = value;
     final prefs = await SharedPreferences.getInstance();
-    switch (metric) {
-      case 'temp':
-        await prefs.setBool('notif_temp', value);
-        break;
-      case 'humedad_aire':
-        await prefs.setBool('notif_humedad_aire', value);
-        break;
-      case 'humedad_suelo':
-        await prefs.setBool('notif_humedad_suelo', value);
-        break;
-    }
+    await prefs.setBool(_notifKey(v), value);
   }
 
-  String get currentLocation => api.currentLocation;
+  String? get greenhouseId => _greenhouseId;
 
-  bool get isSimulating =>
-      _overrideTemp != null ||
-      _overrideHumedadAire != null ||
-      _overrideHumedadSuelo != null;
+  /// Cambia la zona que se muestra. Ignora ids que no existen.
+  void selectZone(String zoneId) {
+    final zone = zones.value[zoneId];
+    if (zone == null) return;
+    _selectedZoneId = zoneId;
+    currentZone.value = zone;
+  }
 
-  /// Trae clima real para [location] (o la ubicación ya seleccionada) y lo
-  /// usa como nueva base, limpiando cualquier simulación previa.
-  Future<void> loadRealWeather({String? location}) async {
-    loading.value = true;
+  /// Se suscribe en tiempo real al estado del invernadero. Llamarlo de
+  /// nuevo cancela la suscripción anterior (sirve como "reintentar" o para
+  /// cambiar de invernadero). Sin [greenhouseId] reusa el último.
+  Future<void> start({String? greenhouseId}) async {
+    if (greenhouseId != null && greenhouseId != _greenhouseId) {
+      // Otro invernadero: no mezclar sus zonas con las del anterior.
+      _greenhouseId = greenhouseId;
+      _selectedZoneId = null;
+      zones.value = const {};
+      currentZone.value = null;
+    }
+    await _subscription?.cancel();
+    _subscription = null;
     error.value = null;
-    if (location != null && location.trim().isNotEmpty) {
-      api.setLocation(location.trim());
-    }
-    try {
-      final reading = await api.getCurrentReading();
-      _baseline = reading;
-      _overrideTemp = null;
-      _overrideHumedadAire = null;
-      _overrideHumedadSuelo = null;
-      _applyCurrentReading();
-    } catch (e) {
-      error.value = e.toString().replaceFirst('Exception: ', '');
-    } finally {
+    final gh = _greenhouseId;
+    if (gh == null) {
       loading.value = false;
+      error.value = 'Elige un invernadero';
+      return;
     }
-  }
 
-  /// Aplica overrides manuales (sliders del simulador) sobre la última
-  /// lectura base real. No vuelve a llamar a la API del clima.
-  void setSimulatedValues({
-    double? temperatura,
-    double? humedadAire,
-    double? humedadSuelo,
-  }) {
-    if (_baseline == null) return;
-    if (temperatura != null) _overrideTemp = temperatura;
-    if (humedadAire != null) _overrideHumedadAire = humedadAire;
-    if (humedadSuelo != null) _overrideHumedadSuelo = humedadSuelo;
-    _applyCurrentReading();
-  }
-
-  /// Quita los overrides manuales y vuelve a mostrar el clima real base.
-  void resetSimulation() {
-    _overrideTemp = null;
-    _overrideHumedadAire = null;
-    _overrideHumedadSuelo = null;
-    _applyCurrentReading();
-  }
-
-  void _applyCurrentReading() {
-    final base = _baseline;
-    if (base == null) return;
-    final reading = base.copyWith(
-      temperatura: _overrideTemp,
-      humedadAire: _overrideHumedadAire,
-      humedadSuelo: _overrideHumedadSuelo,
-      timestamp: DateTime.now(),
-    );
-    currentReading.value = reading;
-    _refreshAlerts(reading);
-  }
-
-  void _refreshAlerts(SensorReading reading) {
-    final nuevas = reading.alertasGeneradas;
-    alerts.value = nuevas;
-
-    final estadoGeneral = reading.estadoGeneral;
-    // Solo disparamos notificación cuando el estado general EMPEORA
-    // respecto al último aviso, para no saturar con notificaciones
-    // repetidas mientras el usuario arrastra un slider.
-    if (estadoGeneral != EstadoNivel.normal &&
-        estadoGeneral != _ultimoEstadoNotificado) {
-      for (final alerta in nuevas.where((a) => a.nivel != EstadoNivel.normal)) {
-        final prefijo = alerta.id.split('-').first;
-        final permitido = switch (prefijo) {
-          'temp' => _notifTemp,
-          'aire' => _notifHumedadAire,
-          'suelo' => _notifHumedadSuelo,
-          _ => true,
-        };
-        if (permitido) {
-          NotificationService.instance.showAlert(alerta);
-        }
+    // Arranque en frío sin red: pinta el último estado guardado mientras
+    // llega el primer snapshot (o si nunca llega).
+    if (zones.value.isEmpty) {
+      final cached = await _loadCachedZones();
+      if (cached.isNotEmpty && zones.value.isEmpty) {
+        _publish(cached);
       }
     }
-    _ultimoEstadoNotificado = estadoGeneral;
+
+    if (source.requiresFirebase && !firebaseReady) {
+      loading.value = false;
+      error.value = 'Firebase no está configurado en este dispositivo';
+      return;
+    }
+
+    loading.value = true;
+    _subscription = source.watchZones(gh).listen(
+      _onSnapshot,
+      onError: (Object e) {
+        loading.value = false;
+        error.value = 'No se pudo leer los sensores: $e';
+      },
+    );
+  }
+
+  void _onSnapshot(ZoneStatusSnapshot snap) {
+    loading.value = false;
+    error.value = null;
+    _updateOffline(snap.fromCache);
+    // Documento inexistente: dejamos el último estado conocido (si lo hay)
+    // y la UI muestra "Esperando datos del invernadero".
+    if (snap.zones.isEmpty) return;
+    _publish(snap.zones);
+    if (!snap.fromCache) _saveCachedZones(snap.zones);
+  }
+
+  /// Publica las zonas y mantiene la seleccionada; si ya no existe (o no
+  /// había ninguna), toma la primera en orden alfabético.
+  void _publish(Map<String, ZoneStatus> nuevas) {
+    zones.value = nuevas;
+    final id = nuevas.containsKey(_selectedZoneId)
+        ? _selectedZoneId!
+        : (nuevas.keys.toList()..sort()).first;
+    _selectedZoneId = id;
+    currentZone.value = nuevas[id];
+  }
+
+  void _updateOffline(bool fromCache) {
+    if (!fromCache) {
+      _offlineTimer?.cancel();
+      _offlineTimer = null;
+      offline.value = false;
+      return;
+    }
+    if (offline.value || _offlineTimer != null) return;
+    _offlineTimer = Timer(offlineDelay, () {
+      _offlineTimer = null;
+      offline.value = true;
+    });
+  }
+
+  String get _cacheKey => 'ultimo_estado_$_greenhouseId';
+
+  Future<Map<String, ZoneStatus>> _loadCachedZones() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString(_cacheKey);
+      if (raw == null) return const {};
+      return ZoneStatusAdapter.zonesFromDocument(
+          jsonDecode(raw) as Map<String, dynamic>);
+    } catch (e) {
+      debugPrint('SensorDataController: caché local ilegible ($e)');
+      return const {};
+    }
+  }
+
+  Future<void> _saveCachedZones(Map<String, ZoneStatus> data) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(
+        _cacheKey,
+        jsonEncode({
+          for (final e in data.entries) e.key: ZoneStatusAdapter.toFirestore(e.value),
+        }),
+      );
+    } catch (e) {
+      debugPrint('SensorDataController: no se pudo guardar la caché ($e)');
+    }
+  }
+
+  /// Detiene la suscripción y olvida el invernadero (al cerrar sesión).
+  Future<void> reset() async {
+    await stop();
+    _greenhouseId = null;
+    _selectedZoneId = null;
+    zones.value = const {};
+    currentZone.value = null;
+    offline.value = false;
+    error.value = null;
+  }
+
+  Future<void> stop() async {
+    _offlineTimer?.cancel();
+    _offlineTimer = null;
+    await _subscription?.cancel();
+    _subscription = null;
   }
 }

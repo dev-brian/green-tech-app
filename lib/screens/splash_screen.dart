@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../services/firebase_service.dart';
 import '../utils/colors.dart';
-import 'dashboard_screen.dart';
+import 'greenhouse_gate_screen.dart';
 import 'login_screen.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -28,11 +28,15 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
   }
 
   Future<void> _navigateNext() async {
-    await Future.delayed(const Duration(milliseconds: 2200));
+    // Espera la animación y, en paralelo, que Firebase restaure la sesión.
+    final results = await Future.wait<Object?>([
+      Future.delayed(const Duration(milliseconds: 2200)),
+      FirebaseService.instance.restoreSession(),
+    ]);
     if (!mounted) return;
-    final loggedIn = FirebaseService.instance.isLoggedIn;
+    final loggedIn = results[1] != null;
     Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (_) => loggedIn ? const DashboardScreen() : const LoginScreen()),
+      MaterialPageRoute(builder: (_) => loggedIn ? const GreenhouseGateScreen() : const LoginScreen()),
     );
   }
 
@@ -80,7 +84,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                   const SizedBox(height: 24),
                   Text(
                     'GREEN TECH',
-                    style: GoogleFonts.poppins(
+                    style: GoogleFonts.plusJakartaSans(
                       color: Colors.white,
                       fontSize: 28,
                       fontWeight: FontWeight.w900,
@@ -90,7 +94,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                   const SizedBox(height: 8),
                   Text(
                     'Monitoreo inteligente de cultivos',
-                    style: GoogleFonts.inter(
+                    style: GoogleFonts.plusJakartaSans(
                       color: Colors.white.withValues(alpha: 0.85),
                       fontSize: 14,
                       fontWeight: FontWeight.w400,

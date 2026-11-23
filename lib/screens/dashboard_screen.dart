@@ -1,16 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
+import '../models/greenhouse.dart';
+import '../models/push_alert.dart';
 import '../models/sensor_model.dart';
+import '../models/zone_status.dart';
+import '../services/alerts_controller.dart';
+import '../services/greenhouse_session.dart';
+import '../services/mock_zone_status_source.dart';
+import '../services/push_service.dart';
 import '../services/sensor_data_controller.dart';
 import '../utils/colors.dart';
 import '../utils/neumorphism.dart';
-import '../widgets/chart_widget.dart';
-import '../widgets/location_picker_dialog.dart';
-import '../widgets/sensor_card.dart';
-import '../widgets/sensor_simulator_panel.dart';
+import '../widgets/live_clock.dart';
+import '../widgets/que_hacer_section.dart';
+import '../widgets/zone_section.dart';
 import 'alerts_screen.dart';
-import 'history_screen.dart';
+import 'greenhouse_gate_screen.dart';
 import 'profile_screen.dart';
 import 'sensor_detail_screen.dart';
 
@@ -23,56 +29,51 @@ class DashboardScreen extends StatefulWidget {
 
 class _DashboardScreenState extends State<DashboardScreen> {
   final SensorDataController _controller = SensorDataController.instance;
+  final GreenhouseSession _session = GreenhouseSession.instance;
 
-  List<ChartPoint> _chartPoints = [];
-  bool _chartLoading = false;
   int _navIndex = 0;
+  final ValueNotifier<PushAlert?> _pushAbrir = PushService.instance.openAlerts;
 
   @override
   void initState() {
     super.initState();
-    _loadAll();
+    _pushAbrir.addListener(_abrirBandejaPorPush);
+    // La app pudo abrirse desde una notificación antes de llegar aquí.
+    WidgetsBinding.instance.addPostFrameCallback((_) => _abrirBandejaPorPush());
   }
 
-  Future<void> _loadAll() async {
-    await _controller.loadRealWeather();
-    if (_controller.error.value == null) {
-      await _loadChart();
-    }
+  @override
+  void dispose() {
+    _pushAbrir.removeListener(_abrirBandejaPorPush);
+    super.dispose();
   }
 
-  Future<void> _loadChart() async {
-    setState(() => _chartLoading = true);
-    try {
-      final chart = await _controller.api
-          .getHistorico(metric: 'temperatura', rango: 'hoy');
-      if (!mounted) return;
-      setState(() {
-        _chartPoints = chart;
-        _chartLoading = false;
-      });
-    } catch (_) {
-      // Si falla la mini-gráfica no bloqueamos el resto del Dashboard;
-      // simplemente se queda vacía con su propio mensaje de "sin datos".
-      if (!mounted) return;
-      setState(() {
-        _chartPoints = [];
-        _chartLoading = false;
-      });
-    }
+  /// Tocar una notificación de alerta abre la bandeja.
+  void _abrirBandejaPorPush() {
+    if (!mounted || _pushAbrir.value == null) return;
+    _pushAbrir.value = null;
+    if (_navIndex == 1) return;
+    _onNavTap(1);
   }
+
+  void _cambiarInvernadero() {
+    if (_session.isDemo) return;
+    Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => const GreenhouseGateScreen(cambiar: true),
+    ));
+  }
+
+  /// Reintenta la suscripción a los sensores (los datos llegan por stream;
+  /// SensorDataController.start se llama en main.dart).
+  Future<void> _loadAll() => _controller.start();
 
   void _onNavTap(int index) {
     if (index == 0) {
       setState(() => _navIndex = 0);
       return;
     }
-    final screens = [
-      null,
-      const HistoryScreen(),
-      const AlertsScreen(),
-      const ProfileScreen()
-    ];
+    setState(() => _navIndex = index);
+    final screens = [null, const AlertsScreen(), const ProfileScreen()];
     Navigator.of(context)
         .push(MaterialPageRoute(builder: (_) => screens[index]!))
         .then((_) {
@@ -80,48 +81,59 @@ class _DashboardScreenState extends State<DashboardScreen> {
     });
   }
 
-  Future<void> _changeLocation() async {
-    final result = await showLocationPicker(
-      context: context,
-      api: _controller.api,
-      initialLocation: _controller.currentLocation,
-    );
-
-    if (result != null && result.trim().isNotEmpty) {
-      await _loadAll();
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textColor = isDark ? AppColors.darkTextPrimary : AppColors.textPrimary;
     final bgColor = isDark ? AppColors.darkBackground : AppColors.background;
 
     return Scaffold(
       backgroundColor: bgColor,
       appBar: AppBar(
-        title: Text(
-          'GREEN TECH',
-          style: GoogleFonts.poppins(
-            fontWeight: FontWeight.w800,
-            letterSpacing: 1.2,
+        title: ValueListenableBuilder<Greenhouse?>(
+          valueListenable: _session.current,
+          builder: (context, gh, _) => InkWell(
+            key: const Key('cambiar_invernadero'),
+            onTap: gh == null || _session.isDemo ? null : _cambiarInvernadero,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'GREEN TECH',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 1.2,
+                  ),
+                ),
+                if (gh != null)
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Flexible(
+                        child: Text(
+                          gh.name,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.plusJakartaSans(
+                              fontSize: 12, fontWeight: FontWeight.w500),
+                        ),
+                      ),
+                      if (!_session.isDemo)
+                        const Icon(Icons.arrow_drop_down, size: 18),
+                    ],
+                  ),
+              ],
+            ),
           ),
         ),
-        backgroundColor: AppColors.secondary,
         actions: [
+          if (_controller.source case final MockZoneStatusSource mock)
+            _buildScenarioMenu(mock),
           IconButton(
             icon: Icon(
               isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
-              color: Colors.white,
             ),
             tooltip: isDark ? 'Cambiar a Modo Claro' : 'Cambiar a Modo Oscuro',
             onPressed: () => AppThemeController.toggleTheme(),
-          ),
-          IconButton(
-            icon: const Icon(Icons.location_on_outlined),
-            tooltip: 'Cambiar ubicación',
-            onPressed: _changeLocation,
           ),
           ValueListenableBuilder<bool>(
             valueListenable: _controller.loading,
@@ -138,23 +150,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
           return ValueListenableBuilder<String?>(
             valueListenable: _controller.error,
             builder: (context, errorMsg, __) {
-              return ValueListenableBuilder<SensorReading?>(
-                valueListenable: _controller.currentReading,
-                builder: (context, reading, ___) {
-                  if (loading && reading == null) {
+              return ValueListenableBuilder<Map<String, ZoneStatus>>(
+                valueListenable: _controller.zones,
+                builder: (context, zones, ___) {
+                  if (loading && zones.isEmpty) {
                     return const Center(
                       child: CircularProgressIndicator(color: AppColors.primary),
                     );
                   }
 
-                  if (errorMsg != null && reading == null) {
+                  if (errorMsg != null && zones.isEmpty) {
                     return _buildErrorState(errorMsg, isDark);
                   }
 
-                  if (reading == null) {
-                    return const Center(
-                      child: CircularProgressIndicator(color: AppColors.primary),
-                    );
+                  if (zones.isEmpty) {
+                    return _buildWaitingState(isDark);
                   }
 
                   return RefreshIndicator(
@@ -162,123 +172,69 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     child: Center(
                       child: ConstrainedBox(
                         constraints: const BoxConstraints(maxWidth: 1000),
-                        child: LayoutBuilder(builder: (context, constraints) {
-                          final wide = constraints.maxWidth > 650;
-                          final maxCrossExtent = wide ? 240.0 : 180.0;
-
-                          return ListView(
-                            padding: const EdgeInsets.all(18),
-                            children: [
-                              if (errorMsg != null) ...[
-                                _buildInlineErrorBanner(errorMsg, isDark),
-                                const SizedBox(height: 14),
-                              ],
-                              _buildHeaderSection(reading, isDark),
-                              const SizedBox(height: 24),
-                              Text(
-                                'Sensores en tiempo real',
-                                style: GoogleFonts.poppins(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w700,
-                                  color: textColor,
-                                ),
-                              ),
-                              const SizedBox(height: 12),
-                              GridView(
-                                shrinkWrap: true,
-                                physics: const NeverScrollableScrollPhysics(),
-                                gridDelegate:
-                                    SliverGridDelegateWithMaxCrossAxisExtent(
-                                  maxCrossAxisExtent: maxCrossExtent,
-                                  mainAxisSpacing: 14,
-                                  crossAxisSpacing: 14,
-                                  mainAxisExtent: 145,
-                                ),
-                                children: [
-                                  SensorCard(
-                                    label: 'Temperatura',
-                                    value: reading.temperatura.toStringAsFixed(1),
-                                    unit: '°C',
-                                    icon: Icons.thermostat,
-                                    estado: reading.estadoTemperatura,
-                                    onTap: _goToDetail,
-                                  ),
-                                  SensorCard(
-                                    label: 'Humedad ambiental',
-                                    value: reading.humedadAire.toStringAsFixed(0),
-                                    unit: '%',
-                                    icon: Icons.water_drop_outlined,
-                                    estado: reading.estadoHumedadAire,
-                                    onTap: _goToDetail,
-                                  ),
-                                  SensorCard(
-                                    label: 'Humedad del suelo',
-                                    value: reading.humedadSuelo.toStringAsFixed(0),
-                                    unit: '%',
-                                    icon: Icons.grass,
-                                    estado: reading.estadoHumedadSuelo,
-                                    onTap: _goToDetail,
-                                  ),
-                                  _buildSensorInfoCard(reading, isDark),
-                                ],
-                              ),
-                              const SizedBox(height: 20),
-                              SensorSimulatorPanel(reading: reading, isDark: isDark),
-                              const SizedBox(height: 28),
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text(
-                                    'Pronóstico próximas horas',
-                                    style: GoogleFonts.poppins(
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.w700,
-                                      color: textColor,
-                                    ),
-                                  ),
-                                  TextButton(
-                                    onPressed: () => Navigator.of(context).push(
-                                      MaterialPageRoute(
-                                          builder: (_) => const HistoryScreen()),
-                                    ),
-                                    child: Text(
-                                      'Ver histórico',
-                                      style: GoogleFonts.inter(
-                                        fontWeight: FontWeight.w600,
-                                        color: AppColors.secondary,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              Container(
-                                decoration: NeumorphismDecoration.extruded(
-                                  context: context,
-                                  isDark: isDark,
-                                  borderRadius: 18,
-                                ),
-                                child: Padding(
-                                  padding:
-                                      const EdgeInsets.fromLTRB(14, 18, 18, 14),
-                                  child: _chartLoading
-                                      ? SizedBox(
-                                          height: wide ? 260 : 200,
-                                          child: const Center(
-                                            child: CircularProgressIndicator(
-                                                color: AppColors.primary),
-                                          ),
-                                        )
-                                      : ChartWidget(
-                                          points: _chartPoints,
-                                          color: AppColors.primary,
-                                          height: wide ? 260 : 200,
-                                        ),
-                                ),
-                              ),
-                              const SizedBox(height: 20),
+                        child: ListView(
+                          padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+                          children: [
+                            ValueListenableBuilder<bool>(
+                              valueListenable: _controller.offline,
+                              builder: (context, offline, _) => offline
+                                  ? Padding(
+                                      padding:
+                                          const EdgeInsets.only(bottom: 14),
+                                      child: _buildOfflineBanner(
+                                          _ultimaLectura(zones), isDark),
+                                    )
+                                  : const SizedBox.shrink(),
+                            ),
+                            if (_session.isDemo) ...[
+                              _buildDemoBanner(isDark),
+                              const SizedBox(height: 14),
                             ],
-                          );
-                        }),
+                            if (errorMsg != null) ...[
+                              _buildInlineErrorBanner(errorMsg, isDark),
+                              const SizedBox(height: 14),
+                            ],
+                            // Se reconstruye cada 10 s para que "hace X"
+                            // avance y detectar zonas que dejaron de reportar.
+                            LiveClock(
+                              builder: (context, now) {
+                                final ordenadas =
+                                    zonasPorSeveridad(zones.values, now);
+                                return Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.stretch,
+                                  children: [
+                                    ResumenHoy(zonas: ordenadas, now: now),
+                                    QueHacerSection(
+                                      zonas: ordenadas,
+                                      now: now,
+                                      onOpenZone: _openZone,
+                                    ),
+                                    const SizedBox(height: 22),
+                                    const TituloSeccion('Tus zonas'),
+                                    for (final zone in ordenadas) ...[
+                                      const SizedBox(height: 12),
+                                      Container(
+                                        padding: const EdgeInsets.all(14),
+                                        decoration:
+                                            NeumorphismDecoration.extruded(
+                                          context: context,
+                                          isDark: isDark,
+                                          borderRadius: 20,
+                                        ),
+                                        child: ZoneSection(
+                                          zone: zone,
+                                          now: now,
+                                          onOpen: () => _openZone(zone.zoneId),
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                );
+                              },
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   );
@@ -291,16 +247,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
       bottomNavigationBar: NavigationBar(
         selectedIndex: _navIndex,
         onDestinationSelected: _onNavTap,
-        indicatorColor: AppColors.mintAccent.withValues(alpha: 0.3),
         destinations: const [
           NavigationDestination(
               icon: Icon(Icons.dashboard_outlined),
-              selectedIcon: Icon(Icons.dashboard, color: AppColors.secondary),
+              selectedIcon: Icon(Icons.dashboard),
               label: 'Inicio'),
           NavigationDestination(
-              icon: Icon(Icons.show_chart), label: 'Histórico'),
-          NavigationDestination(
-              icon: Icon(Icons.notifications_outlined), label: 'Alertas'),
+              icon: _AlertasIcon(), label: 'Alertas'),
           NavigationDestination(
               icon: Icon(Icons.person_outline), label: 'Perfil'),
         ],
@@ -320,8 +273,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
             const Icon(Icons.cloud_off, color: AppColors.critico, size: 42),
             const SizedBox(height: 12),
             Text(
-              'No se pudo cargar el clima',
-              style: GoogleFonts.poppins(
+              'No se pudieron cargar los sensores',
+              style: GoogleFonts.plusJakartaSans(
                 fontSize: 16,
                 fontWeight: FontWeight.w700,
                 color: textColor,
@@ -331,7 +284,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             const SizedBox(height: 6),
             Text(
               message,
-              style: GoogleFonts.inter(fontSize: 13, color: subtextColor),
+              style: GoogleFonts.plusJakartaSans(fontSize: 13, color: subtextColor),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 18),
@@ -344,10 +297,40 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 foregroundColor: Colors.white,
               ),
             ),
-            const SizedBox(height: 8),
-            TextButton(
-              onPressed: _changeLocation,
-              child: const Text('Cambiar ubicación'),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// La fuente responde pero `greenhouses/{id}/state/latest` aún no existe:
+  /// el backend todavía no ha publicado el estado de ninguna zona.
+  Widget _buildWaitingState(bool isDark) {
+    final textColor = isDark ? AppColors.darkTextPrimary : AppColors.textPrimary;
+    final subtextColor = isDark ? AppColors.darkTextSecondary : AppColors.textSecondary;
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.sensors_off, color: AppColors.secondary, size: 42),
+            const SizedBox(height: 12),
+            Text(
+              'Esperando datos del invernadero…',
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: textColor,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Aún no llega el estado de las zonas. '
+              'Aparecerá aquí automáticamente.',
+              style: GoogleFonts.plusJakartaSans(fontSize: 13, color: subtextColor),
+              textAlign: TextAlign.center,
             ),
           ],
         ),
@@ -355,22 +338,81 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
+  /// Hora del dato más reciente entre todas las zonas.
+  DateTime _ultimaLectura(Map<String, ZoneStatus> zones) => zones.values
+      .map((z) => z.timestamp)
+      .reduce((a, b) => a.isAfter(b) ? a : b);
+
+  /// Sin red: Firestore sigue entregando la caché local. Se avisa para que
+  /// el productor sepa que los valores pueden no ser los actuales.
+  Widget _buildOfflineBanner(DateTime ultimaLectura, bool isDark) {
+    final color = AppColors.estadoTexto(EstadoNivel.alerta, isDark: isDark);
+    return Semantics(
+      liveRegion: true,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: isDark ? 0.18 : 0.1),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: color, width: 1.5),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.wifi_off_rounded, color: color, size: 20),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                'Sin conexión · datos de las '
+                '${DateFormat('HH:mm').format(ultimaLectura)}',
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: color,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Modo demo: los datos son de prueba, no de un invernadero real.
+  Widget _buildDemoBanner(bool isDark) {
+    final color = isDark ? AppColors.darkTextSecondary : AppColors.textSecondary;
+    return Row(
+      children: [
+        Icon(Icons.science_outlined, size: 18, color: color),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            'Modo demostración: datos de prueba. Usa el matraz para '
+            'forzar escenarios.',
+            style: GoogleFonts.plusJakartaSans(fontSize: 12, color: color),
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildInlineErrorBanner(String message, bool isDark) {
+    final color = AppColors.estadoTexto(EstadoNivel.critico, isDark: isDark);
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: AppColors.critico.withValues(alpha: isDark ? 0.18 : 0.1),
+        color: color.withValues(alpha: isDark ? 0.18 : 0.1),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.critico.withValues(alpha: 0.4)),
+        border: Border.all(color: color, width: 1.5),
       ),
       child: Row(
         children: [
-          const Icon(Icons.error_outline, color: AppColors.critico, size: 18),
+          Icon(Icons.error_outline, color: color, size: 20),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
-              'No se pudo actualizar el clima: $message',
-              style: GoogleFonts.inter(fontSize: 12, color: AppColors.critico),
+              'No se pudo actualizar los sensores: $message',
+              style: GoogleFonts.plusJakartaSans(
+                  fontSize: 13, fontWeight: FontWeight.w600, color: color),
             ),
           ),
         ],
@@ -378,171 +420,50 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _buildHeaderSection(SensorReading reading, bool isDark) {
-    final textColor = isDark ? AppColors.darkTextPrimary : AppColors.textPrimary;
-    final subtextColor = isDark ? AppColors.darkTextSecondary : AppColors.textSecondary;
-
-    return Container(
-      decoration: NeumorphismDecoration.extruded(
-        context: context,
-        isDark: isDark,
-        borderRadius: 18,
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: AppColors.mintAccent.withValues(alpha: isDark ? 0.2 : 0.3),
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: const Icon(Icons.eco, color: AppColors.primary, size: 28),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Bienvenido',
-                        style: GoogleFonts.inter(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w400,
-                          color: subtextColor,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        'Monitoreo de cultivo',
-                        style: GoogleFonts.poppins(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w700,
-                          color: textColor,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 18),
-            Wrap(
-              runSpacing: 10,
-              spacing: 10,
-              children: [
-                _buildStatusChip(
-                    'Estado',
-                    AppColors.labelForEstado(reading.estadoGeneral),
-                    AppColors.forEstado(reading.estadoGeneral),
-                    isDark),
-                _buildStatusChip(
-                    'Ubicación', reading.ubicacion, AppColors.secondary, isDark),
-                _buildStatusChip(
-                    'Última',
-                    DateFormat('dd/MM · HH:mm').format(reading.timestamp),
-                    subtextColor,
-                    isDark),
-                if (_controller.isSimulating)
-                  _buildStatusChip(
-                      'Modo', 'Simulado', AppColors.accentOrange, isDark),
-              ],
-            )
-          ],
-        ),
-      ),
+  /// Menú para forzar escenarios de la fuente de prueba.
+  Widget _buildScenarioMenu(MockZoneStatusSource mock) {
+    return PopupMenuButton<MockScenario>(
+      icon: const Icon(Icons.science_outlined),
+      tooltip: 'Escenario de prueba',
+      onSelected: (s) => setState(() => mock.scenario = s),
+      itemBuilder: (_) => [
+        for (final s in MockScenario.values)
+          CheckedPopupMenuItem(
+            value: s,
+            checked: s == mock.scenario,
+            child: Text(s.label),
+          ),
+      ],
     );
   }
 
-  Widget _buildStatusChip(String label, String value, Color color, bool isDark) {
-    final textColor = isDark ? AppColors.darkTextPrimary : AppColors.textPrimary;
-
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: isDark ? 0.2 : 0.12),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withValues(alpha: isDark ? 0.4 : 0.3), width: 1),
-      ),
-      child: Text.rich(
-        TextSpan(
-          children: [
-            TextSpan(
-              text: '$label: ',
-              style: GoogleFonts.inter(
-                fontWeight: FontWeight.w600,
-                fontSize: 12,
-                color: textColor,
-              ),
-            ),
-            TextSpan(
-              text: value,
-              style: GoogleFonts.inter(
-                fontWeight: FontWeight.w500,
-                fontSize: 12,
-                color: color,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _goToDetail() {
+  /// Abre el detalle de [zoneId] (el Detalle muestra la zona activa).
+  void _openZone(String zoneId) {
+    _controller.selectZone(zoneId);
     Navigator.of(context)
         .push(MaterialPageRoute(builder: (_) => const SensorDetailScreen()));
   }
+}
 
-  Widget _buildSensorInfoCard(SensorReading reading, bool isDark) {
-    return InkWell(
-      onTap: _goToDetail,
-      borderRadius: BorderRadius.circular(18),
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: NeumorphismDecoration.glowingExtruded(
-          isDark: isDark,
-          accentColor: AppColors.secondary,
-          borderRadius: 18,
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            const Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Icon(Icons.sensors, color: AppColors.secondary, size: 24),
-                Icon(Icons.arrow_forward_ios, color: AppColors.secondary, size: 14),
-              ],
-            ),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Ver detalle',
-                  style: GoogleFonts.poppins(
-                    color: isDark ? AppColors.darkTextPrimary : AppColors.textPrimary,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 15,
-                  ),
-                ),
-                Text(
-                  'del sensor',
-                  style: GoogleFonts.inter(
-                    color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary,
-                    fontSize: 12,
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
+/// Ícono de Alertas con el número de alertas abiertas (Observer sobre
+/// AlertsController).
+class _AlertasIcon extends StatelessWidget {
+  const _AlertasIcon();
+
+  @override
+  Widget build(BuildContext context) {
+    final alerts = AlertsController.instance;
+    return ValueListenableBuilder<List<AlertItem>>(
+      valueListenable: alerts.alerts,
+      builder: (context, _, __) {
+        final n = alerts.activas;
+        return Badge(
+          isLabelVisible: n > 0,
+          label: Text(n > 99 ? '99+' : '$n'),
+          backgroundColor: AppColors.critico,
+          child: const Icon(Icons.notifications_outlined),
+        );
+      },
     );
   }
 }

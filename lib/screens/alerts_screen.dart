@@ -1,44 +1,108 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+
 import '../models/sensor_model.dart';
-import '../services/sensor_data_controller.dart';
+import '../services/alerts_controller.dart';
+import '../services/greenhouse_session.dart';
 import '../utils/colors.dart';
 import '../widgets/alert_tile.dart';
-import '../widgets/location_picker_dialog.dart';
 
-/// Pantalla de Alertas: ya NO calcula sus propios umbrales. Lee las
-/// alertas directamente de [SensorDataController], que las genera con las
-/// mismas reglas de semáforo que usa el Dashboard (sensor_model.dart), y
-/// que incluyen tanto el clima real como cualquier simulación activa con
-/// los sliders. Así el Dashboard y las Alertas siempre están de acuerdo.
+/// Filtro por estado de la bandeja.
+enum FiltroEstado {
+  activas('Activas'),
+  atendidas('Atendidas'),
+  resueltas('Resueltas'),
+  todas('Todas');
+
+  const FiltroEstado(this.label);
+  final String label;
+
+  bool acepta(AlertItem a) => switch (this) {
+        FiltroEstado.activas => a.status == AlertStatus.nueva,
+        FiltroEstado.atendidas => a.status == AlertStatus.atendida,
+        FiltroEstado.resueltas => a.status == AlertStatus.autoResuelta,
+        FiltroEstado.todas => true,
+      };
+}
+
+/// Filtro por severidad.
+enum FiltroSeveridad {
+  todas('Toda severidad'),
+  criticas('Críticas'),
+  avisos('Avisos');
+
+  const FiltroSeveridad(this.label);
+  final String label;
+
+  bool acepta(AlertItem a) => switch (this) {
+        FiltroSeveridad.todas => true,
+        FiltroSeveridad.criticas => a.nivel == EstadoNivel.critico,
+        FiltroSeveridad.avisos => a.nivel == EstadoNivel.alerta,
+      };
+}
+
+/// Aplica los tres filtros de la bandeja.
+List<AlertItem> filtrarAlertas(
+  List<AlertItem> alerts, {
+  FiltroEstado estado = FiltroEstado.todas,
+  FiltroSeveridad severidad = FiltroSeveridad.todas,
+  String? zona,
+}) =>
+    [
+      for (final a in alerts)
+        if (estado.acepta(a) &&
+            severidad.acepta(a) &&
+            (zona == null || a.zoneId == zona))
+          a,
+    ];
+
+/// Bandeja de alertas: las mismas que la PWA, leídas de
+/// `greenhouses/{id}/alerts`. La app no calcula alertas; solo permite
+/// atenderlas desde campo.
 class AlertsScreen extends StatefulWidget {
-  const AlertsScreen({super.key});
+  const AlertsScreen({super.key, this.controller, this.uid});
+
+  /// Para pruebas; por defecto [AlertsController.instance].
+  final AlertsController? controller;
+
+  /// Para pruebas; por defecto el usuario de la sesión.
+  final String? uid;
 
   @override
   State<AlertsScreen> createState() => _AlertsScreenState();
 }
 
 class _AlertsScreenState extends State<AlertsScreen> {
-  final SensorDataController _controller = SensorDataController.instance;
-  bool _soloActivas = false;
+  late final AlertsController _controller =
+      widget.controller ?? AlertsController.instance;
 
-  Future<void> _changeLocation() async {
-    final result = await showLocationPicker(
-      context: context,
-      api: _controller.api,
-      initialLocation: _controller.currentLocation,
-    );
+  FiltroEstado _estado = FiltroEstado.activas;
+  FiltroSeveridad _severidad = FiltroSeveridad.todas;
+  String? _zona;
 
-    if (result != null && result.trim().isNotEmpty) {
-      await _controller.loadRealWeather(location: result);
+  Future<void> _atender(AlertItem alert) async {
+    final uid = widget.uid ??
+        GreenhouseSession.instance.uid ??
+        (GreenhouseSession.instance.isDemo ? 'demo' : null);
+    if (uid == null) return;
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.showSnackBar(const SnackBar(
+      content: Text('Alerta atendida. Si no hay señal, se sincroniza al volver.'),
+      duration: Duration(seconds: 3),
+    ));
+    // No se espera al servidor: sin red el Future no termina hasta
+    // reconectar, y la alerta ya se ve atendida.
+    final ok = await _controller.attend(alert, uid);
+    if (!ok && mounted) {
+      messenger.showSnackBar(const SnackBar(
+        content: Text('No se pudo atender la alerta. Revisa tus permisos.'),
+      ));
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textColor =
-        isDark ? AppColors.darkTextPrimary : AppColors.textPrimary;
     final subtextColor =
         isDark ? AppColors.darkTextSecondary : AppColors.textSecondary;
     final bgColor = isDark ? AppColors.darkBackground : AppColors.background;
@@ -48,28 +112,14 @@ class _AlertsScreenState extends State<AlertsScreen> {
       appBar: AppBar(
         title: Text(
           'Alertas de Cultivo',
-          style: GoogleFonts.poppins(fontWeight: FontWeight.w700),
+          style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700),
         ),
-        backgroundColor: AppColors.secondary,
         actions: [
           IconButton(
             icon: Icon(
               isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
-              color: Colors.white,
             ),
             onPressed: () => AppThemeController.toggleTheme(),
-          ),
-          IconButton(
-            icon: const Icon(Icons.location_on_outlined),
-            tooltip: 'Cambiar ubicación',
-            onPressed: _changeLocation,
-          ),
-          ValueListenableBuilder<bool>(
-            valueListenable: _controller.loading,
-            builder: (context, loading, _) => IconButton(
-              icon: const Icon(Icons.refresh),
-              onPressed: loading ? null : () => _controller.loadRealWeather(),
-            ),
           ),
         ],
       ),
@@ -85,72 +135,61 @@ class _AlertsScreenState extends State<AlertsScreen> {
                 );
               }
 
-              final visibles = _soloActivas
-                  ? allAlerts.where((a) => a.activa).toList()
-                  : allAlerts;
+              final zonas = {for (final a in allAlerts) a.zoneId}.toList()
+                ..sort();
+              final visibles = filtrarAlertas(allAlerts,
+                  estado: _estado, severidad: _severidad, zona: _zona);
 
               return Center(
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 800),
                   child: Column(
                     children: [
-                      Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Row(
-                          children: [
-                            FilterChip(
-                              label: Text(
-                                'Solo activas',
-                                style: GoogleFonts.inter(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w600,
-                                  color: _soloActivas
-                                      ? AppColors.accentOrange
-                                      : textColor,
+                      ValueListenableBuilder<String?>(
+                        valueListenable: _controller.error,
+                        builder: (context, err, _) => err == null
+                            ? const SizedBox.shrink()
+                            : Padding(
+                                padding:
+                                    const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                                child: Text(
+                                  err,
+                                  style: GoogleFonts.plusJakartaSans(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.estadoTexto(
+                                        EstadoNivel.critico,
+                                        isDark: isDark),
+                                  ),
                                 ),
                               ),
-                              selected: _soloActivas,
-                              onSelected: (v) =>
-                                  setState(() => _soloActivas = v),
-                              selectedColor: AppColors.accentOrange
-                                  .withValues(alpha: isDark ? 0.25 : 0.15),
-                              backgroundColor: isDark
-                                  ? AppColors.darkSurface
-                                  : AppColors.surface,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(20),
-                                side: BorderSide(
-                                  color: _soloActivas
-                                      ? AppColors.accentOrange
-                                      : (isDark
-                                          ? AppColors.darkBorder
-                                          : AppColors.border),
-                                ),
-                              ),
-                              showCheckmark: false,
-                            ),
-                          ],
-                        ),
                       ),
+                      _buildFiltros(zonas, isDark),
                       Expanded(
                         child: visibles.isEmpty
                             ? Center(
-                                child: Text(
-                                  'No hay alertas para mostrar',
-                                  style: GoogleFonts.inter(
-                                    color: subtextColor,
-                                    fontSize: 15,
+                                child: Padding(
+                                  padding: const EdgeInsets.all(24),
+                                  child: Text(
+                                    _estado == FiltroEstado.activas
+                                        ? 'No hay alertas activas. Todo en orden.'
+                                        : 'No hay alertas para mostrar',
+                                    textAlign: TextAlign.center,
+                                    style: GoogleFonts.plusJakartaSans(
+                                      color: subtextColor,
+                                      fontSize: 15,
+                                    ),
                                   ),
                                 ),
                               )
-                            : RefreshIndicator(
-                                onRefresh: () => _controller.loadRealWeather(),
-                                child: ListView.builder(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 16),
-                                  itemCount: visibles.length,
-                                  itemBuilder: (context, i) =>
-                                      AlertTile(alert: visibles[i]),
+                            : ListView.builder(
+                                padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+                                itemCount: visibles.length,
+                                itemBuilder: (context, i) => AlertTile(
+                                  alert: visibles[i],
+                                  onAttend: visibles[i].activa
+                                      ? () => _atender(visibles[i])
+                                      : null,
                                 ),
                               ),
                       ),
@@ -161,6 +200,83 @@ class _AlertsScreenState extends State<AlertsScreen> {
             },
           );
         },
+      ),
+    );
+  }
+
+  Widget _buildFiltros(List<String> zonas, bool isDark) {
+    final textColor = isDark ? AppColors.darkTextPrimary : AppColors.textPrimary;
+    Widget chip(String label, bool selected, VoidCallback onTap,
+            {Color color = AppColors.secondary}) =>
+        Padding(
+          padding: const EdgeInsets.only(right: 8),
+          child: ChoiceChip(
+            label: Text(
+              label,
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: selected ? color : textColor,
+              ),
+            ),
+            selected: selected,
+            onSelected: (_) => onTap(),
+            selectedColor: color.withValues(alpha: isDark ? 0.25 : 0.15),
+            backgroundColor: isDark ? AppColors.darkSurface : AppColors.surface,
+            showCheckmark: false,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+              side: BorderSide(
+                color: selected
+                    ? color
+                    : (isDark ? AppColors.darkBorder : AppColors.border),
+              ),
+            ),
+          ),
+        );
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(children: [
+              for (final f in FiltroEstado.values)
+                chip(f.label, _estado == f, () => setState(() => _estado = f)),
+            ]),
+          ),
+          const SizedBox(height: 8),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(children: [
+              for (final f in FiltroSeveridad.values)
+                chip(f.label, _severidad == f,
+                    () => setState(() => _severidad = f),
+                    color: f == FiltroSeveridad.criticas
+                        ? AppColors.critico
+                        : f == FiltroSeveridad.avisos
+                            ? AppColors.accentOrange
+                            : AppColors.secondary),
+              if (zonas.length > 1) ...[
+                const SizedBox(width: 4),
+                DropdownButton<String?>(
+                  value: zonas.contains(_zona) ? _zona : null,
+                  hint: const Text('Todas las zonas'),
+                  underline: const SizedBox.shrink(),
+                  items: [
+                    const DropdownMenuItem(
+                        value: null, child: Text('Todas las zonas')),
+                    for (final z in zonas)
+                      DropdownMenuItem(value: z, child: Text(z)),
+                  ],
+                  onChanged: (z) => setState(() => _zona = z),
+                ),
+              ],
+            ]),
+          ),
+        ],
       ),
     );
   }

@@ -1,0 +1,126 @@
+name: CI
+
+# Revisa cada pull request y cada push a ramas de trabajo de la app Flutter:
+# formato, análisis estático (flutter_lints), pruebas y un APK debug.
+on:
+  pull_request:
+    branches: ['main', 'develop']
+  push:
+    branches: ['feature/**', 'feat/**', 'fix/**', 'chore/**', 'hotfix/**']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Misma versión con la que se generó pubspec.lock (Dart 3.12).
+  FLUTTER_VERSION: '3.44.9'
+
+jobs:
+  test:
+    name: analyze + test
+    runs-on: ubuntu-latest
+    env:
+      SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+
+      - name: Instalar dependencias
+        run: flutter pub get --enforce-lockfile
+
+      - name: Análisis estático
+        run: flutter analyze
+
+      - name: Pruebas (adapters, repositorios, semáforo y widgets)
+        run: flutter test --reporter expanded
+
+      - name: Avisar a Slack (éxito)
+        if: success() && env.SLACK_WEBHOOK_URL != ''
+        run: |
+          curl -sS -X POST -H 'Content-type: application/json' \
+            --data "{\"text\":\":white_check_mark: CI app en verde en ${GITHUB_REF_NAME} (${GITHUB_ACTOR}): ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}\"}" \
+            "$SLACK_WEBHOOK_URL"
+
+      - name: Avisar a Slack (falla)
+        if: failure() && env.SLACK_WEBHOOK_URL != ''
+        run: |
+          curl -sS -X POST -H 'Content-type: application/json' \
+            --data "{\"text\":\":x: CI app falló en ${GITHUB_REF_NAME} (${GITHUB_ACTOR}): ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}\"}" \
+            "$SLACK_WEBHOOK_URL"
+
+  build-apk:
+    name: build APK (release)
+    runs-on: ubuntu-latest
+    needs: test
+    env:
+      # Opcionales: sin ellos el APK release se firma con la llave debug
+      # (sirve para probar, no para publicar). Ver docs/release-android.md.
+      ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+      ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+      ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+      ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+
+      - name: Instalar dependencias
+        run: flutter pub get --enforce-lockfile
+
+      - name: Preparar firma release (si hay secretos)
+        if: env.ANDROID_KEYSTORE_BASE64 != ''
+        run: |
+          echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > android/app/upload-keystore.jks
+          {
+            echo "storeFile=upload-keystore.jks"
+            echo "storePassword=$ANDROID_KEYSTORE_PASSWORD"
+            echo "keyAlias=$ANDROID_KEY_ALIAS"
+            echo "keyPassword=$ANDROID_KEY_PASSWORD"
+          } > android/key.properties
+
+      - name: Compilar APK release
+        run: flutter build apk --release
+
+      # Checklist 16: la compilación release no contiene secretos.
+      - name: Revisar que el APK no tenga secretos
+        run: |
+          mkdir -p /tmp/apk && unzip -q -o build/app/outputs/flutter-apk/app-release.apk -d /tmp/apk
+          if grep -r -l -a -E 'BEGIN (RSA |EC )?PRIVATE KEY|"private_key"|mongodb\+srv://|service_role|DEVICE_INGEST_KEY|SLACK_WEBHOOK' /tmp/apk; then
+            echo "::error::El APK contiene algo que parece un secreto"; exit 1
+          fi
+          echo "Sin llaves privadas, cuentas de servicio ni claves del backend en el APK."
+
+      - name: Subir APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: greentech-app-release-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
+          retention-days: 30
+
+      - name: Borrar la llave del runner
+        if: always()
+        run: rm -f android/app/upload-keystore.jks android/key.properties
