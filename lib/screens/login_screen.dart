@@ -177,14 +177,18 @@ class _LoginScreenState extends State<LoginScreen> {
                                 width: 76,
                                 height: 76,
                                 decoration: BoxDecoration(
-                                  color: AppColors.mintAccent
-                                      .withValues(alpha: isDark ? 0.2 : 0.3),
+                                  // En oscuro el círculo es blanco para que el
+                                  // verde del logo no se pierda.
+                                  color: isDark
+                                      ? Colors.white
+                                      : AppColors.mintAccent
+                                          .withValues(alpha: 0.3),
                                   shape: BoxShape.circle,
                                 ),
-                                child: const Icon(
-                                  Icons.eco,
-                                  color: AppColors.primary,
-                                  size: 44,
+                                padding: const EdgeInsets.all(10),
+                                child: Image.asset(
+                                  'assets/images/logo.png',
+                                  semanticLabel: 'Logo de GreenTech',
                                 ),
                               ),
                             ),

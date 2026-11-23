@@ -79,7 +79,11 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                         ),
                       ],
                     ),
-                    child: const Icon(Icons.eco, color: AppColors.primary, size: 60),
+                    padding: const EdgeInsets.all(14),
+                    child: Image.asset(
+                      'assets/images/logo.png',
+                      semanticLabel: 'Logo de GreenTech',
+                    ),
                   ),
                   const SizedBox(height: 24),
                   Text(
