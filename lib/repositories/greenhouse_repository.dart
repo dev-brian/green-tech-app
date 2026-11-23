@@ -1,6 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../adapters/greenhouse_adapter.dart';
+import '../adapters/threshold_adapter.dart';
+import '../models/crop_thresholds.dart';
 import '../models/greenhouse.dart';
 
 /// Error con un mensaje listo para mostrar al usuario.
@@ -31,6 +33,12 @@ abstract class GreenhouseRepository {
   /// Saca al usuario del invernadero: lo quita de `memberIds` y borra
   /// `members/{uid}` en un solo batch (las reglas exigen ambos juntos).
   Future<void> leave({required String greenhouseId, required String uid});
+
+  /// Umbrales efectivos por cultivo, leídos de `greenhouses/{id}`.
+  ///
+  /// Solo lectura: los umbrales se gestionan en la PWA. La app no calcula
+  /// niveles con ellos; solo muestra los mismos rangos que usa el backend.
+  Future<Map<CropType, CropThresholds>> thresholds(String greenhouseId);
 }
 
 class FirestoreGreenhouseRepository implements GreenhouseRepository {
@@ -129,5 +137,13 @@ class FirestoreGreenhouseRepository implements GreenhouseRepository {
       })
       ..delete(ghRef.collection('members').doc(uid));
     await batch.commit();
+  }
+
+  @override
+  Future<Map<CropType, CropThresholds>> thresholds(
+    String greenhouseId,
+  ) async {
+    final snap = await _greenhouses.doc(greenhouseId).get();
+    return ThresholdAdapter.fromFirestore(snap.data());
   }
 }

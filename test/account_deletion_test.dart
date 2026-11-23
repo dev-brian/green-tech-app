@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:greentech_app/models/crop_thresholds.dart';
 import 'package:greentech_app/models/greenhouse.dart';
 import 'package:greentech_app/repositories/greenhouse_repository.dart';
 import 'package:greentech_app/services/account_deletion.dart';
@@ -23,6 +24,12 @@ class _Repo implements GreenhouseRepository {
   Future<void> leave(
           {required String greenhouseId, required String uid}) async =>
       salidas.add(greenhouseId);
+
+  @override
+  Future<Map<CropType, CropThresholds>> thresholds(
+    String greenhouseId,
+  ) async =>
+      const {};
 }
 
 void main() {

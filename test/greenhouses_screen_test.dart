@@ -1,385 +1,210 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-
-import 'package:greentech_app/models/greenhouse_thresholds.dart';
+import 'package:greentech_app/adapters/threshold_adapter.dart';
+import 'package:greentech_app/models/crop_thresholds.dart';
+import 'package:greentech_app/models/greenhouse.dart';
 import 'package:greentech_app/models/zone_status.dart';
+import 'package:greentech_app/repositories/alerts_repository.dart';
+import 'package:greentech_app/repositories/greenhouse_repository.dart';
+import 'package:greentech_app/screens/crop_thresholds_screen.dart';
 import 'package:greentech_app/screens/greenhouse_detail_screen.dart';
 import 'package:greentech_app/screens/greenhouses_screen.dart';
-import 'package:greentech_app/screens/threshold_editor_screen.dart';
-import 'package:greentech_app/services/local_greenhouse_repository.dart';
+import 'package:greentech_app/services/alerts_controller.dart';
+import 'package:greentech_app/services/app_status.dart';
+import 'package:greentech_app/services/greenhouse_session.dart';
+import 'package:greentech_app/services/sensor_data_controller.dart';
+import 'package:greentech_app/services/zone_status_source.dart';
 import 'package:greentech_app/utils/colors.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+class _FakeGreenhouses implements GreenhouseRepository {
+  _FakeGreenhouses({this.lista = const []});
+
+  List<Greenhouse> lista;
+  Map<String, dynamic> datos = const {};
+
+  @override
+  Future<List<Greenhouse>> myGreenhouses(String uid) async => lista;
+
+  @override
+  Future<String> joinWithCode({
+    required String code,
+    required String uid,
+    String? email,
+    String? name,
+  }) async {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<void> leave({
+    required String greenhouseId,
+    required String uid,
+  }) async {}
+
+  @override
+  Future<Map<CropType, CropThresholds>> thresholds(
+    String greenhouseId,
+  ) async =>
+      ThresholdAdapter.fromFirestore(datos);
+}
+
+class _FakeZones implements ZoneStatusSource {
+  @override
+  bool get requiresFirebase => true;
+
+  @override
+  Stream<ZoneStatusSnapshot> watchZones(String greenhouseId) =>
+      const Stream.empty();
+}
+
+class _FakeAlerts implements AlertsRepository {
+  @override
+  Stream<AlertsSnapshot> watch(String greenhouseId) => const Stream.empty();
+
+  @override
+  Future<void> attend(String g, String a, String u) async {}
+}
 
 void main() {
-  final repository = LocalGreenhouseRepository.instance;
+  const norte = Greenhouse(id: 'g1', name: 'Invernadero Norte', role: GreenhouseRole.admin);
+  const sur = Greenhouse(id: 'g2', name: 'Invernadero Sur', role: GreenhouseRole.operador);
+
+  late _FakeGreenhouses repo;
+  late GreenhouseSession session;
 
   setUp(() {
     SharedPreferences.setMockInitialValues({});
-    repository.reset();
+    firebaseReady = true;
+    repo = _FakeGreenhouses(lista: const [norte, sur]);
+    session = GreenhouseSession.forTesting(
+      repository: repo,
+      sensors: SensorDataController.forTesting(_FakeZones()),
+      alerts: AlertsController.forTesting(_FakeAlerts(), notify: (_) {}),
+      currentUid: () => 'uid-1',
+    );
+    session.greenhouses.value = const [norte, sur];
+    session.current.value = norte;
   });
 
-  /// Monta la pantalla en un teléfono de 360 px de ancho. Es alto para que
-  /// todo se construya sin desplazarse.
-  Future<void> montar(WidgetTester tester, {Widget? home}) async {
+  /// Monta la pantalla en un teléfono de 360 px de ancho.
+  Future<void> montar(WidgetTester tester, Widget pantalla) async {
     tester.view.devicePixelRatio = 2;
     tester.view.physicalSize = const Size(360, 2600) * 2;
     addTearDown(tester.view.reset);
     await tester.pumpWidget(MaterialApp(
       theme: buildAppTheme(),
-      home: home ?? const GreenhousesScreen(),
+      home: pantalla,
     ));
     await tester.pump();
     await tester.pump();
   }
 
-  Future<void> escribir(WidgetTester tester, Key key, String texto) async {
-    await tester.enterText(find.byKey(key), texto);
-    await tester.pump();
-  }
+  Widget lista() =>
+      GreenhousesScreen(session: session, repository: repo);
 
-  group('GreenhouseThresholds / Crop (JSON)', () {
-    test('el id se genera corto y único', () {
-      expect(nuevoId(), isNotEmpty);
-      expect(nuevoId(), isNot(nuevoId()));
-    });
-
-    test('round-trip conserva ubicación y umbrales', () {
-      const original = GreenhouseThresholds(
-        id: 'g1',
-        name: 'Norte',
-        location: 'Ladera este',
-        crops: [
-          Crop(
-            id: 'c1',
-            name: 'Tomate',
-            thresholds: {
-              HydroVariable.ph: VariableThreshold(min: 5.5, max: 6.5),
-              HydroVariable.light:
-                  VariableThreshold(min: 12000, max: 18000),
-            },
-          ),
-        ],
+  Widget detalle() => GreenhouseDetailScreen(
+        greenhouse: norte,
+        session: session,
+        repository: repo,
       );
 
-      final copia = GreenhouseThresholds.fromJson(
-        jsonDecode(jsonEncode(original.toJson())) as Map<String, dynamic>,
-      );
-
-      expect(copia.id, 'g1');
-      expect(copia.name, 'Norte');
-      expect(copia.location, 'Ladera este');
-      expect(copia.crops.single.name, 'Tomate');
-      expect(copia.crops.single.thresholds[HydroVariable.ph]!.min, 5.5);
-      expect(copia.crops.single.thresholds[HydroVariable.light]!.max, 18000);
+  group('Umbrales reales de Firestore', () {
+    test('sin datos guardados se muestran los perfiles por defecto', () {
+      final umbrales = ThresholdAdapter.fromFirestore({});
+      expect(umbrales[CropType.jitomate]!.de(HydroVariable.ph)!.yellowMin, 5.5);
+      expect(umbrales[CropType.lechuga]!.de(HydroVariable.ec)!.yellowMax, 1.2);
+      expect(umbrales[CropType.jitomate]!.personalizadas, isEmpty);
     });
 
-    test('una variable desconocida en el JSON se ignora', () {
-      final crop = Crop.fromJson({
-        'id': 'c1',
-        'name': 'Tomate',
-        'thresholds': {
-          'variable_inventada': {'min': 1, 'max': 2},
-          'ph': {'min': 5.5, 'max': 6.5},
+    test('thresholdsByCrop solo afecta al cultivo indicado', () {
+      final umbrales = ThresholdAdapter.fromFirestore({
+        'thresholdsByCrop': {
+          'lechuga': {'ec': {'redMin': 0.6, 'yellowMin': 1.0, 'yellowMax': 1.4, 'redMax': 1.8}},
         },
       });
+      expect(umbrales[CropType.lechuga]!.de(HydroVariable.ec)!.yellowMin, 1.0);
+      expect(
+        umbrales[CropType.lechuga]!.personalizadas,
+        contains(HydroVariable.ec),
+      );
+      expect(umbrales[CropType.jitomate]!.de(HydroVariable.ec)!.yellowMin, 2.0);
+    });
 
-      expect(crop.thresholds.keys, [HydroVariable.ph]);
+    test('el campo viejo thresholds solo aplica a jitomate', () {
+      final umbrales = ThresholdAdapter.fromFirestore({
+        'thresholds': {'ec': {'yellowMin': 2.5}},
+      });
+      expect(umbrales[CropType.jitomate]!.de(HydroVariable.ec)!.yellowMin, 2.5);
+      expect(umbrales[CropType.jitomate]!.de(HydroVariable.ec)!.redMin, 1.5);
+      expect(umbrales[CropType.lechuga]!.de(HydroVariable.ec)!.yellowMin, 0.8);
     });
   });
 
-  group('umbralTexto', () {
-    test('formato con y sin unidad', () {
-      expect(
-        umbralTexto(
-          HydroVariable.ph,
-          const VariableThreshold(min: 5.5, max: 6.5),
-        ),
-        'pH 5.5–6.5',
-      );
-      expect(
-        umbralTexto(
-          HydroVariable.light,
-          const VariableThreshold(min: 12000, max: 18000),
-        ),
-        'Luz 12000–18000 lux',
-      );
-      expect(
-        umbralTexto(
-          HydroVariable.airTemp,
-          const VariableThreshold(min: 20, max: 26),
-        ),
-        'Temperatura 20.0–26.0°C',
-      );
-      expect(
-        umbralTexto(
-          HydroVariable.humidity,
-          const VariableThreshold(min: 60, max: 80),
-        ),
-        'Humedad 60–80%',
-      );
-    });
-  });
-
-  group('LocalGreenhouseRepository', () {
-    test('guarda invernaderos y los vuelve a cargar', () async {
-      await repository.addGreenhouseThresholds(
-        const GreenhouseThresholds(id: 'g1', name: 'Norte', location: 'Ladera'),
-      );
-      await repository.addCrop(
-        'g1',
-        const Crop(
-          id: 'c1',
-          name: 'Tomate',
-          thresholds: {
-            HydroVariable.ph: VariableThreshold(min: 5.5, max: 6.5),
-          },
-        ),
-      );
-
-      repository.reset();
-      await repository.load();
-
-      final g = repository.greenhouseById('g1');
-      expect(g, isNotNull);
-      expect(g!.name, 'Norte');
-      expect(g.location, 'Ladera');
-      expect(g.crops.single.name, 'Tomate');
-      expect(g.crops.single.thresholds[HydroVariable.ph]!.max, 6.5);
-    });
-
-    test('editar y eliminar actualizan la lista guardada', () async {
-      await repository.addGreenhouseThresholds(const GreenhouseThresholds(id: 'g1', name: 'Norte'));
-      await repository.addGreenhouseThresholds(const GreenhouseThresholds(id: 'g2', name: 'Sur'));
-      await repository.updateGreenhouseThresholds(
-        const GreenhouseThresholds(id: 'g1', name: 'Norte 2'),
-      );
-      await repository.deleteGreenhouseThresholds('g2');
-
-      repository.reset();
-      await repository.load();
-
-      expect(repository.greenhouses.value, hasLength(1));
-      expect(repository.greenhouses.value.single.name, 'Norte 2');
-    });
-  });
-
-  group('Invernaderos a 360 px', () {
-    testWidgets('estado vacío invita a crear el primero', (tester) async {
-      await montar(tester);
-
-      expect(find.text('Invernaderos'), findsOneWidget);
-      expect(find.text('Aún no tienes invernaderos'), findsOneWidget);
-
-      await tester.tap(find.byType(FloatingActionButton));
-      await tester.pumpAndSettle();
-      expect(find.byKey(const Key('greenhouse_name')), findsOneWidget);
-
-      // Sin nombre no se guarda.
-      await tester.tap(find.widgetWithText(FilledButton, 'Guardar'));
-      await tester.pump();
-      expect(find.text('Ingresa un nombre'), findsOneWidget);
-      expect(repository.greenhouses.value, isEmpty);
-
-      await tester.tap(find.widgetWithText(TextButton, 'Cancelar'));
-      await tester.pumpAndSettle();
-      expect(find.byKey(const Key('greenhouse_name')), findsNothing);
-      expect(tester.takeException(), isNull);
-    });
-
-    testWidgets('agrega un invernadero con nombre y ubicación',
+  group('Invernaderos a 360 px (solo lectura)', () {
+    testWidgets('lista los invernaderos reales con su rol y sin controles de alta o borrado',
         (tester) async {
-      await montar(tester);
-
-      await tester.tap(find.byType(FloatingActionButton));
-      await tester.pumpAndSettle();
-      await escribir(tester, const Key('greenhouse_name'), 'Invernadero Norte');
-      await escribir(tester, const Key('greenhouse_location'), 'Ladera este');
-      await tester.tap(find.widgetWithText(FilledButton, 'Guardar'));
-      await tester.pumpAndSettle();
+      await montar(tester, lista());
 
       expect(find.text('Invernadero Norte'), findsOneWidget);
-      expect(find.text('Ladera este · 0 cultivos'), findsOneWidget);
-      expect(repository.greenhouses.value.single.name, 'Invernadero Norte');
-      expect(tester.takeException(), isNull);
+      expect(find.text('Invernadero Sur'), findsOneWidget);
+      expect(find.textContaining('Administrador · En uso'), findsOneWidget);
+      expect(find.text('Operador'), findsOneWidget);
+      expect(find.byKey(const Key('greenhouse_g1')), findsOneWidget);
+      expect(find.text('Agregar invernadero'), findsNothing);
+      expect(find.byTooltip(RegExp(r'^Eliminar')), findsNothing);
+      expect(find.byType(FloatingActionButton), findsNothing);
     });
 
-    testWidgets('edita un invernadero existente', (tester) async {
-      await repository.addGreenhouseThresholds(const GreenhouseThresholds(id: 'g1', name: 'Norte'));
-      await montar(tester);
+    testWidgets('estado vacío invita a unirse con código', (tester) async {
+      repo.lista = const [];
+      session.greenhouses.value = const [];
+      session.current.value = null;
 
-      await tester.tap(find.byTooltip('Editar invernadero Norte'));
-      await tester.pumpAndSettle();
-      expect(find.text('Editar invernadero'), findsOneWidget);
+      await montar(tester, lista());
 
-      await escribir(tester, const Key('greenhouse_name'), 'Sur');
-      await tester.tap(find.widgetWithText(FilledButton, 'Guardar'));
-      await tester.pumpAndSettle();
-
-      expect(find.text('Sur'), findsOneWidget);
-      expect(find.text('Norte'), findsNothing);
-      expect(repository.greenhouses.value.single.name, 'Sur');
-      expect(tester.takeException(), isNull);
+      expect(find.text('Aún no tienes invernaderos'), findsOneWidget);
+      expect(find.byKey(const Key('unirse_con_codigo')), findsOneWidget);
     });
 
-    testWidgets('elimina solo con confirmación', (tester) async {
-      await repository.addGreenhouseThresholds(const GreenhouseThresholds(id: 'g1', name: 'Norte'));
-      await montar(tester);
-
-      await tester.tap(find.byTooltip('Eliminar invernadero Norte'));
-      await tester.pumpAndSettle();
-      expect(find.text('¿Eliminar invernadero?'), findsOneWidget);
-      expect(find.textContaining('junto con sus cultivos'), findsOneWidget);
-
-      await tester.tap(find.widgetWithText(TextButton, 'Cancelar'));
-      await tester.pumpAndSettle();
-      expect(find.text('Norte'), findsOneWidget);
-
-      await tester.tap(find.byTooltip('Eliminar invernadero Norte'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.widgetWithText(TextButton, 'Eliminar'));
-      await tester.pumpAndSettle();
-
-      expect(find.text('Norte'), findsNothing);
-      expect(repository.greenhouses.value, isEmpty);
-      expect(tester.takeException(), isNull);
-    });
-
-    testWidgets('toques ≥ 48 px y contraste AA', (tester) async {
-      await repository.addGreenhouseThresholds(
-        const GreenhouseThresholds(id: 'g1', name: 'Norte', location: 'Ladera este'),
-      );
-      await repository.addCrop(
-        'g1',
-        const Crop(
-          id: 'c1',
-          name: 'Tomate',
-          thresholds: {
-            HydroVariable.ph: VariableThreshold(min: 5.5, max: 6.5),
-          },
-        ),
-      );
-      await montar(tester);
-
-      await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
-      await expectLater(tester, meetsGuideline(textContrastGuideline));
-      expect(tester.takeException(), isNull);
-    });
-  });
-
-  group('Detalle y umbrales a 360 px', () {
-    testWidgets('abre el detalle y agrega un cultivo', (tester) async {
-      await repository.addGreenhouseThresholds(const GreenhouseThresholds(id: 'g1', name: 'Norte'));
-      await montar(tester);
-
-      await tester.tap(find.byKey(const Key('greenhouse_g1')));
-      await tester.pumpAndSettle();
-      expect(find.byType(GreenhouseDetailScreen), findsOneWidget);
-      expect(find.text('Este invernadero no tiene cultivos'), findsOneWidget);
-
-      await tester.tap(find.byType(FloatingActionButton));
-      await tester.pumpAndSettle();
-      await escribir(tester, const Key('crop_name'), 'Tomate');
-      await tester.tap(find.widgetWithText(FilledButton, 'Guardar'));
-      await tester.pumpAndSettle();
-
-      expect(find.text('Tomate'), findsOneWidget);
-      expect(find.text('Sin umbrales configurados'), findsOneWidget);
-      expect(repository.greenhouses.value.single.crops.single.name, 'Tomate');
-      expect(tester.takeException(), isNull);
-    });
-
-    testWidgets('configura umbrales de pH y luz de un cultivo',
+    testWidgets('abre el detalle con los cultivos y los umbrales efectivos',
         (tester) async {
-      await repository.addGreenhouseThresholds(const GreenhouseThresholds(id: 'g1', name: 'Norte'));
-      await repository.addCrop(
-        'g1',
-        const Crop(id: 'c1', name: 'Tomate'),
-      );
-      await montar(
-        tester,
-        home: const GreenhouseDetailScreen(greenhouseId: 'g1'),
+      repo.datos = {
+        'thresholdsByCrop': {
+          'jitomate': {'ph': {'yellowMin': 5.6, 'yellowMax': 6.6}},
+        },
+      };
+      await montar(tester, detalle());
+
+      expect(find.text('Jitomate'), findsOneWidget);
+      expect(find.text('Lechuga'), findsOneWidget);
+      expect(find.textContaining('1 variable ajustada'), findsOneWidget);
+      expect(
+        find.textContaining('consultan aquí y se gestionan en la PWA'),
+        findsOneWidget,
       );
 
-      await tester.tap(find.byKey(const Key('crop_c1')));
-      await tester.pumpAndSettle();
-      expect(find.byType(ThresholdEditorScreen), findsOneWidget);
-
-      await escribir(tester, const Key('umbral_min_ph'), '5.5');
-      await escribir(tester, const Key('umbral_max_ph'), '6.5');
-      await escribir(tester, const Key('umbral_min_light'), '12000');
-      await escribir(tester, const Key('umbral_max_light'), '18000');
-      await tester.tap(find.byTooltip('Guardar cambios'));
+      await tester.tap(find.byKey(const Key('crop_jitomate')));
       await tester.pumpAndSettle();
 
-      expect(find.byType(ThresholdEditorScreen), findsNothing);
-      expect(find.text('pH 5.5–6.5'), findsOneWidget);
-      expect(find.text('Luz 12000–18000 lux'), findsOneWidget);
-
-      final crop = repository.greenhouses.value.single.crops.single;
-      expect(crop.thresholds[HydroVariable.ph]!.min, 5.5);
-      expect(crop.thresholds[HydroVariable.light]!.max, 18000);
-      expect(tester.takeException(), isNull);
+      expect(find.byType(CropThresholdsScreen), findsOneWidget);
+      expect(find.byKey(const Key('umbral_precaucion_ph')), findsOneWidget);
+      expect(find.textContaining('5.6'), findsOneWidget);
+      expect(find.text('Valor personalizado'), findsWidgets);
+      expect(find.byType(TextFormField), findsNothing);
     });
 
-    testWidgets('el mínimo no puede superar al máximo', (tester) async {
-      await repository.addGreenhouseThresholds(const GreenhouseThresholds(id: 'g1', name: 'Norte'));
-      await repository.addCrop('g1', const Crop(id: 'c1', name: 'Tomate'));
-      await montar(
-        tester,
-        home: const GreenhouseDetailScreen(greenhouseId: 'g1'),
-      );
-
-      await tester.tap(find.byKey(const Key('crop_c1')));
-      await tester.pumpAndSettle();
-
-      await escribir(tester, const Key('umbral_min_ph'), '7');
-      await escribir(tester, const Key('umbral_max_ph'), '5.5');
-      await tester.tap(find.byTooltip('Guardar cambios'));
-      await tester.pump();
-
-      expect(
-        find.text('El mínimo no puede superar al máximo'),
-        findsWidgets,
-      );
-      expect(find.byType(ThresholdEditorScreen), findsOneWidget);
-      expect(
-        repository.greenhouses.value.single.crops.single.thresholds,
-        isEmpty,
-      );
+    testWidgets('pasa las guías de accesibilidad a 360 px', (tester) async {
+      await montar(tester, lista());
+      await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
+      await expectLater(tester, meetsGuideline(textContrastGuideline));
     });
 
-    testWidgets('toques ≥ 48 px y contraste AA en detalle y umbrales',
+    testWidgets('el detalle pasa las guías de accesibilidad a 360 px',
         (tester) async {
-      await repository.addGreenhouseThresholds(const GreenhouseThresholds(id: 'g1', name: 'Norte'));
-      await repository.addCrop(
-        'g1',
-        const Crop(
-          id: 'c1',
-          name: 'Tomate',
-          thresholds: {
-            HydroVariable.ph: VariableThreshold(min: 5.5, max: 6.5),
-            HydroVariable.humidity:
-                VariableThreshold(min: 60, max: 80),
-          },
-        ),
-      );
-      await montar(
-        tester,
-        home: const GreenhouseDetailScreen(greenhouseId: 'g1'),
-      );
-
+      await montar(tester, detalle());
       await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
       await expectLater(tester, meetsGuideline(textContrastGuideline));
-
-      await tester.tap(find.byKey(const Key('crop_c1')));
-      await tester.pumpAndSettle();
-      expect(find.byType(ThresholdEditorScreen), findsOneWidget);
-
-      await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
-      await expectLater(tester, meetsGuideline(textContrastGuideline));
-      expect(tester.takeException(), isNull);
     });
   });
 }

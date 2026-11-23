@@ -1,101 +1,94 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import '../models/greenhouse_thresholds.dart';
+import '../models/greenhouse.dart';
 import '../models/sensor_model.dart';
-import '../services/local_greenhouse_repository.dart';
+import '../repositories/greenhouse_repository.dart';
+import '../services/greenhouse_session.dart';
 import '../utils/colors.dart';
-import '../utils/form_style.dart';
 import '../utils/neumorphism.dart';
 import 'greenhouse_detail_screen.dart';
+import 'greenhouse_gate_screen.dart';
 
-/// Invernaderos del productor: alta, edición, borrado y acceso a los
-/// cultivos y umbrales de cada uno.
+/// Invernaderos de los que el usuario es miembro en Firestore.
+///
+/// Es la MISMA fuente que "Tus invernaderos" ([GreenhouseSession]); aquí no
+/// se crea ni se borra nada: solo se consultan los umbrales reales. Para
+/// unirse con un código se reutiliza [GreenhouseGateScreen].
 class GreenhousesScreen extends StatefulWidget {
-  const GreenhousesScreen({super.key});
+  const GreenhousesScreen({super.key, this.session, this.repository});
+
+  /// Inyectable en pruebas; por defecto la sesión de la app.
+  final GreenhouseSession? session;
+
+  /// Inyectable en pruebas; por defecto el repositorio de Firestore.
+  final GreenhouseRepository? repository;
 
   @override
   State<GreenhousesScreen> createState() => _GreenhousesScreenState();
 }
 
 class _GreenhousesScreenState extends State<GreenhousesScreen> {
-  final LocalGreenhouseRepository _repository = LocalGreenhouseRepository.instance;
+  late final GreenhouseSession _session =
+      widget.session ?? GreenhouseSession.instance;
+  late final GreenhouseRepository _repository =
+      widget.repository ?? FirestoreGreenhouseRepository();
+
+  bool _cargando = false;
+  String? _error;
 
   @override
   void initState() {
     super.initState();
-    // Si ya está cargado no hace nada; si no, el ValueNotifier repinta.
-    _repository.load();
+    if (_session.greenhouses.value.isEmpty &&
+        !_session.isDemo &&
+        _session.uid != null) {
+      _cargar();
+    }
   }
 
-  void _openDetail(GreenhouseThresholds greenhouse) {
+  Future<void> _cargar() async {
+    if (_cargando) return;
+    setState(() {
+      _cargando = true;
+      _error = null;
+    });
+    try {
+      await _session.load();
+    } catch (_) {
+      if (mounted) {
+        setState(() => _error = 'No se pudieron cargar tus invernaderos');
+      }
+    } finally {
+      if (mounted) setState(() => _cargando = false);
+    }
+  }
+
+  void _abrirDetalle(Greenhouse greenhouse) {
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => GreenhouseDetailScreen(greenhouseId: greenhouse.id),
+        builder: (_) => GreenhouseDetailScreen(
+          greenhouse: greenhouse,
+          session: _session,
+          repository: _repository,
+        ),
       ),
     );
   }
 
-  Future<void> _save(GreenhouseThresholds? existing) async {
-    final result = await showGreenhouseForm(context, existing: existing);
-    if (result == null) return;
-    if (existing == null) {
-      await _repository.addGreenhouseThresholds(result);
-    } else {
-      await _repository.updateGreenhouseThresholds(result);
-    }
+  void _unirse() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => const GreenhouseGateScreen(cambiar: true),
+      ),
+    );
   }
 
-  Future<void> _delete(GreenhouseThresholds greenhouse) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) {
-        final isDark =
-            Theme.of(dialogContext).brightness == Brightness.dark;
-        final cancelColor =
-            isDark ? AppColors.darkTextSecondary : AppColors.textSecondary;
-        return AlertDialog(
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-          title: const Text('¿Eliminar invernadero?'),
-          content: Text(
-            'Se eliminará "${greenhouse.name}" junto con sus cultivos y '
-            'umbrales.',
-            style: GoogleFonts.inter(fontSize: 14),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(false),
-              style: TextButton.styleFrom(
-                foregroundColor: cancelColor,
-                minimumSize: const Size(64, 48),
-              ),
-              child: Text(
-                'Cancelar',
-                style: GoogleFonts.inter(fontWeight: FontWeight.w600),
-              ),
-            ),
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(true),
-              style: TextButton.styleFrom(
-                foregroundColor: AppColors.estadoTexto(
-                  EstadoNivel.critico,
-                  isDark: isDark,
-                ),
-                minimumSize: const Size(64, 48),
-              ),
-              child: Text(
-                'Eliminar',
-                style: GoogleFonts.inter(fontWeight: FontWeight.w700),
-              ),
-            ),
-          ],
-        );
-      },
-    );
-    if (confirmed == true) {
-      await _repository.deleteGreenhouseThresholds(greenhouse.id);
-    }
+  List<Greenhouse> _lista() {
+    final lista = _session.greenhouses.value;
+    if (lista.isNotEmpty) return lista;
+    final demo = _session.isDemo ? _session.current.value : null;
+    return demo == null ? const [] : [demo];
   }
 
   @override
@@ -112,9 +105,13 @@ class _GreenhousesScreenState extends State<GreenhousesScreen> {
       appBar: AppBar(
         title: Text(
           'Invernaderos',
-          style: GoogleFonts.poppins(fontWeight: FontWeight.w700),
+          style: GoogleFonts.poppins(
+            fontWeight: FontWeight.w700,
+            color: Colors.white,
+          ),
         ),
         backgroundColor: AppColors.secondary,
+        foregroundColor: Colors.white,
         actions: [
           IconButton(
             icon: Icon(
@@ -126,9 +123,13 @@ class _GreenhousesScreenState extends State<GreenhousesScreen> {
           ),
         ],
       ),
-      body: ValueListenableBuilder<List<GreenhouseThresholds>>(
-        valueListenable: _repository.greenhouses,
-        builder: (context, greenhouses, _) {
+      body: AnimatedBuilder(
+        animation: Listenable.merge([_session.greenhouses, _session.current]),
+        builder: (context, _) {
+          if (_cargando && _lista().isEmpty) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          final greenhouses = _lista();
           if (greenhouses.isEmpty) {
             return _emptyState(
               isDark: isDark,
@@ -140,8 +141,29 @@ class _GreenhousesScreenState extends State<GreenhousesScreen> {
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 700),
               child: ListView(
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 90),
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
                 children: [
+                  if (_error != null)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: _aviso(
+                        icon: Icons.wifi_off_rounded,
+                        texto: _error!,
+                        color: AppColors.estadoTexto(
+                          EstadoNivel.alerta,
+                          isDark: isDark,
+                        ),
+                      ),
+                    ),
+                  if (_session.isDemo)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: _aviso(
+                        icon: Icons.science_outlined,
+                        texto: 'Modo demostración: umbrales de ejemplo.',
+                        color: subtextColor,
+                      ),
+                    ),
                   Semantics(
                     header: true,
                     child: Text(
@@ -164,37 +186,27 @@ class _GreenhousesScreenState extends State<GreenhousesScreen> {
                     ),
                     const SizedBox(height: 12),
                   ],
+                  const SizedBox(height: 8),
+                  Text(
+                    'Los umbrales se consultan aquí; se gestionan en la PWA.',
+                    style: GoogleFonts.inter(fontSize: 12, color: subtextColor),
+                  ),
                 ],
               ),
             ),
           );
         },
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _save(null),
-        backgroundColor: AppColors.primary,
-        foregroundColor: AppColors.textPrimary,
-        icon: const Icon(Icons.add),
-        label: Text(
-          'Agregar invernadero',
-          style: GoogleFonts.inter(fontWeight: FontWeight.w600),
-        ),
-      ),
     );
   }
 
   Widget _greenhouseCard(
-    GreenhouseThresholds greenhouse, {
+    Greenhouse greenhouse, {
     required bool isDark,
     required Color textColor,
     required Color subtextColor,
   }) {
-    final crops = greenhouse.crops.length;
-    final subtitle = [
-      if (greenhouse.location.isNotEmpty) greenhouse.location,
-      crops == 1 ? '1 cultivo' : '$crops cultivos',
-    ].join(' · ');
-
+    final enUso = _session.current.value?.id == greenhouse.id;
     return Container(
       key: Key('greenhouse_${greenhouse.id}'),
       decoration: NeumorphismDecoration.extruded(
@@ -204,77 +216,90 @@ class _GreenhousesScreenState extends State<GreenhousesScreen> {
       ),
       child: InkWell(
         borderRadius: BorderRadius.circular(18),
-        onTap: () => _openDetail(greenhouse),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(14, 10, 4, 10),
-          child: Row(
-            children: [
-              Container(
-                width: 44,
-                height: 44,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: AppColors.secondary
-                      .withValues(alpha: isDark ? 0.25 : 0.12),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
-                  Icons.warehouse_outlined,
-                  color: AppColors.secondary,
-                  size: 24,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      greenhouse.name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.poppins(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: textColor,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      subtitle,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.inter(
-                        fontSize: 13,
-                        color: subtextColor,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              IconButton(
-                onPressed: () => _save(greenhouse),
-                tooltip: 'Editar invernadero ${greenhouse.name}',
-                icon: const Icon(
-                  Icons.edit_outlined,
-                  color: AppColors.secondary,
-                ),
-              ),
-              IconButton(
-                onPressed: () => _delete(greenhouse),
-                tooltip: 'Eliminar invernadero ${greenhouse.name}',
-                icon: Icon(
-                  Icons.delete_outline,
-                  color: AppColors.estadoTexto(
-                    EstadoNivel.critico,
-                    isDark: isDark,
+        onTap: () => _abrirDetalle(greenhouse),
+        child: Semantics(
+          button: true,
+          label: '${greenhouse.name}. ${greenhouse.role.label}. '
+              '${enUso ? 'En uso. ' : ''}Ver umbrales',
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+            child: Row(
+              children: [
+                Container(
+                  width: 44,
+                  height: 44,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: AppColors.secondary
+                        .withValues(alpha: isDark ? 0.25 : 0.12),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.warehouse_outlined,
+                    color: AppColors.secondary,
+                    size: 24,
                   ),
                 ),
-              ),
-            ],
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        greenhouse.name,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.poppins(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: textColor,
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        enUso
+                            ? '${greenhouse.role.label} · En uso'
+                            : greenhouse.role.label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.inter(
+                          fontSize: 13,
+                          color: subtextColor,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 4),
+                const Icon(Icons.chevron_right_rounded, size: 28),
+              ],
+            ),
           ),
         ),
       ),
+    );
+  }
+
+  Widget _aviso({
+    required IconData icon,
+    required String texto,
+    required Color color,
+  }) {
+    return Row(
+      children: [
+        Icon(icon, size: 18, color: color),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            texto,
+            style: GoogleFonts.inter(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: color,
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -306,14 +331,15 @@ class _GreenhousesScreenState extends State<GreenhousesScreen> {
             ),
             const SizedBox(height: 6),
             Text(
-              'Agrega uno para guardar sus cultivos y los umbrales de luz, '
-              'pH, temperatura y demás variables.',
+              'Pídele un código de invitación al administrador para '
+              'consultar los umbrales de su invernadero.',
               textAlign: TextAlign.center,
               style: GoogleFonts.inter(fontSize: 13, color: subtextColor),
             ),
             const SizedBox(height: 20),
             FilledButton.icon(
-              onPressed: () => _save(null),
+              key: const Key('unirse_con_codigo'),
+              onPressed: _unirse,
               style: FilledButton.styleFrom(
                 backgroundColor: AppColors.primary,
                 foregroundColor: AppColors.textPrimary,
@@ -321,129 +347,13 @@ class _GreenhousesScreenState extends State<GreenhousesScreen> {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
               ),
-              icon: const Icon(Icons.add),
+              icon: const Icon(Icons.qr_code_rounded),
               label: Text(
-                'Agregar invernadero',
+                'Unirse con código',
                 style: GoogleFonts.inter(fontWeight: FontWeight.w700),
               ),
             ),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-/// Formulario para crear o editar un invernadero. Devuelve el invernadero
-/// listo para guardar, o null si se cancela.
-Future<GreenhouseThresholds?> showGreenhouseForm(
-  BuildContext context, {
-  GreenhouseThresholds? existing,
-}) {
-  return showDialog<GreenhouseThresholds>(
-    context: context,
-    builder: (_) => _GreenhouseForm(existing: existing),
-  );
-}
-
-class _GreenhouseForm extends StatefulWidget {
-  const _GreenhouseForm({this.existing});
-
-  final GreenhouseThresholds? existing;
-
-  @override
-  State<_GreenhouseForm> createState() => _GreenhouseFormState();
-}
-
-class _GreenhouseFormState extends State<_GreenhouseForm> {
-  final _formKey = GlobalKey<FormState>();
-  late final TextEditingController _name;
-  late final TextEditingController _location;
-
-  @override
-  void initState() {
-    super.initState();
-    _name = TextEditingController(text: widget.existing?.name ?? '');
-    _location = TextEditingController(text: widget.existing?.location ?? '');
-  }
-
-  @override
-  void dispose() {
-    _name.dispose();
-    _location.dispose();
-    super.dispose();
-  }
-
-  void _submit() {
-    if (!_formKey.currentState!.validate()) return;
-    final existing = widget.existing;
-    Navigator.of(context).pop(
-      GreenhouseThresholds(
-        id: existing?.id ?? nuevoId(),
-        name: _name.text.trim(),
-        location: _location.text.trim(),
-        crops: existing?.crops ?? const [],
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textColor =
-        isDark ? AppColors.darkTextPrimary : AppColors.textPrimary;
-
-    return Dialog(
-      backgroundColor:
-          isDark ? AppColors.darkSurface : AppColors.surface,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(
-                widget.existing == null
-                    ? 'Nuevo invernadero'
-                    : 'Editar invernadero',
-                style: GoogleFonts.poppins(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                  color: textColor,
-                ),
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                key: const Key('greenhouse_name'),
-                controller: _name,
-                autofocus: true,
-                textInputAction: TextInputAction.next,
-                style: GoogleFonts.inter(fontSize: 14, color: textColor),
-                decoration: inputDecoration('Nombre', isDark: isDark),
-                validator: (value) => (value == null || value.trim().isEmpty)
-                    ? 'Ingresa un nombre'
-                    : null,
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                key: const Key('greenhouse_location'),
-                controller: _location,
-                textInputAction: TextInputAction.done,
-                onFieldSubmitted: (_) => _submit(),
-                style: GoogleFonts.inter(fontSize: 14, color: textColor),
-                decoration:
-                    inputDecoration('Ubicación (opcional)', isDark: isDark),
-              ),
-              const SizedBox(height: 20),
-              DialogActions(
-                onCancel: () => Navigator.of(context).pop(),
-                onSave: _submit,
-              ),
-            ],
-          ),
         ),
       ),
     );
