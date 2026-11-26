@@ -10,6 +10,7 @@ import '../utils/neumorphism.dart';
 import '../widgets/actuators_card.dart';
 import '../widgets/history_chart.dart';
 import '../widgets/live_clock.dart';
+import '../widgets/zone_selector.dart';
 
 /// Muestra la misma zona activa que el Dashboard — no hace su propio fetch
 /// por separado, para que nunca se desincronice de lo que se ve en la
@@ -63,6 +64,14 @@ class _SensorDetailScreenState extends State<SensorDetailScreen> {
                 child: ListView(
                   padding: const EdgeInsets.all(18),
                   children: [
+                                        ValueListenableBuilder<Map<String, ZoneStatus>>(
+                      valueListenable: _controller.zones,
+                      builder: (context, zones, _) => ZoneSelector(
+                        zones: zones,
+                        selectedId: r.zoneId,
+                        onSelected: _controller.selectZone,
+                      ),
+                    ),
                     Container(
                       decoration: NeumorphismDecoration.extruded(
                         context: context,
