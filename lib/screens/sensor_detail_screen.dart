@@ -10,6 +10,9 @@ import '../utils/neumorphism.dart';
 import '../widgets/actuators_card.dart';
 import '../widgets/history_chart.dart';
 import '../widgets/live_clock.dart';
+import '../models/history.dart';
+import '../services/csv_export.dart';
+import '../services/history_csv.dart';
 
 /// Muestra la misma zona activa que el Dashboard — no hace su propio fetch
 /// por separado, para que nunca se desincronice de lo que se ve en la
@@ -24,6 +27,24 @@ class SensorDetailScreen extends StatefulWidget {
 class _SensorDetailScreenState extends State<SensorDetailScreen> {
   final SensorDataController _controller = SensorDataController.instance;
   final GreenhouseSession _session = GreenhouseSession.instance;
+    Future<void> _exportar(HistoryRange range) async {
+    final gh = _controller.greenhouseId;
+    if (gh == null) return;
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.showSnackBar(
+        const SnackBar(content: Text('Preparando archivo…')));
+    try {
+      final repo = _session.sources.history;
+      final zonas = _controller.zones.value.keys.toList()..sort();
+      final historias = await Future.wait(
+          [for (final z in zonas) repo.fetch(gh, z, range)]);
+      await compartirCsv(
+          historyToCsv(historias), 'historico_${range.name}.csv');
+    } catch (_) {
+      messenger.showSnackBar(const SnackBar(
+          content: Text('No se pudo exportar. Revisa tu conexión.')));
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -40,6 +61,16 @@ class _SensorDetailScreenState extends State<SensorDetailScreen> {
           style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700),
         ),
         actions: [
+                    PopupMenuButton<HistoryRange>(
+            icon: const Icon(Icons.download_rounded),
+            tooltip: 'Exportar histórico (CSV)',
+            onSelected: _exportar,
+            itemBuilder: (_) => [
+              for (final r in HistoryRange.values)
+                PopupMenuItem(
+                    value: r, child: Text('Exportar todas las zonas · ${r.label}')),
+            ],
+          ),
           IconButton(
             icon: Icon(
               isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
