@@ -44,7 +44,7 @@ dependencies:
 
   # Gráficas del histórico (24 h / 7 d / 30 d) en el Detalle de zona
   fl_chart: ^1.3.1
-  share_plus: ^4.5.3
+  share_plus: ^13.3.1
   cross_file: ^0.3.5+4
 
 dev_dependencies:
